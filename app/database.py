@@ -3,8 +3,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Создание базы данных SQLite
-DATABASE_URL = "sqlite:///./images.db"
+# Создание папки db, если не существует
+if not os.path.exists("app/db"):
+    os.makedirs("app/db")
+
+# Путь к базе данных
+DATABASE_URL = "sqlite:///app/db/images.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

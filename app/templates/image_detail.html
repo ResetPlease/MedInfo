@@ -12,17 +12,22 @@
         
         <div class="flex justify-center mb-6 space-x-4">
             <a href="/" class="bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 transition">
-                Вернуться к галерее
+                back
             </a>
             <a href="/upload" class="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 transition">
-                Загрузить еще
+                new upload
             </a>
+            <form action="/image/{{ image.id }}/delete" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить это изображение?');">
+                <button type="submit" class="bg-red-500 text-white p-2 rounded-md hover:bg-red-600 transition">
+                    delete
+                </button>
+            </form>
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
             <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md mb-4">
-            <h2 class="text-xl font-semibold text-gray-800 mb-2">Название: {{ image.name }}</h2>
-            <p class="text-gray-600">Теги: {{ image.tags }}</p>
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
+            <p class="text-gray-600">Tags: {{ image.tags }}</p>
         </div>
     </div>
 </body>
