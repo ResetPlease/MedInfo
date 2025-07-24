@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Галерея изображений</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Галерея изображений</h1>
+        
+        <div class="flex justify-center mb-6">
+            <form method="get" action="/search" class="flex w-full max-w-md">
+                <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию" 
+                       class="w-full p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" 
+                        class="bg-blue-500 text-white p-2 rounded-r-md hover:bg-blue-600 transition">
+                    Поиск
+                </button>
+            </form>
+        </div>
+
+        <div class="flex justify-center mb-6">
+            <a href="/upload" class="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 transition">
+                Загрузить новое изображение
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% for image in images %}
+            <a href="/image/{{ image.id }}" class="block">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition duration-300">
+                    <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">{{ image.name }}</h3>
+                        <p class="text-gray-600 text-sm">Теги: {{ image.tags }}</p>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

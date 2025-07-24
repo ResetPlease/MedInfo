@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ image.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">{{ image.name }}</h1>
+        
+        <div class="flex justify-center mb-6 space-x-4">
+            <a href="/" class="bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 transition">
+                Вернуться к галерее
+            </a>
+            <a href="/upload" class="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 transition">
+                Загрузить еще
+            </a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+            <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md mb-4">
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Название: {{ image.name }}</h2>
+            <p class="text-gray-600">Теги: {{ image.tags }}</p>
+        </div>
+    </div>
+</body>
+</html>
