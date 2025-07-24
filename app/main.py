@@ -1,11 +1,14 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, Request, Security
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 import os
 import shutil
+import json
+import zipfile
+from io import BytesIO
 from typing import List
 from datetime import datetime
 from .database import SessionLocal, init_db
@@ -29,8 +32,8 @@ ALLOWED_TAGS = [
 security = HTTPBasic()
 
 def verify_credentials(credentials: HTTPBasicCredentials = Security(security)):
-    correct_username = "login78654"
-    correct_password = "imag$bank4546"
+    correct_username = "admin"
+    correct_password = "secret"
     if credentials.username != correct_username or credentials.password != correct_password:
         raise HTTPException(
             status_code=401,
@@ -145,3 +148,46 @@ async def delete_image(image_id: int, db: Session = Depends(get_db), credentials
     
     # Перенаправление на главную страницу
     return RedirectResponse(url="/", status_code=303)
+
+# Создание и скачивание бэкапа
+@app.get("/backup")
+async def create_backup(db: Session = Depends(get_db), credentials: HTTPBasicCredentials = Depends(verify_credentials)):
+    # Получение всех изображений из базы данных
+    images = db.query(Image).all()
+    
+    # Создание JSON с метаданными
+    metadata = [
+        {
+            "name": image.name,
+            "file_path": image.file_path,
+            "tags": image.tags.split(",")
+        } for image in images
+    ]
+    
+    # Создание ZIP-архива в памяти
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        # Добавление JSON с метаданными
+        zip_file.writestr("metadata.json", json.dumps(metadata, ensure_ascii=False, indent=2))
+        
+        # Добавление изображений из папки uploads
+        uploads_dir = "app/uploads"
+        for image in images:
+            file_path = f"app{image.file_path}"  # Преобразуем /uploads/filename в app/uploads/filename
+            if os.path.exists(file_path):
+                # Используем только имя файла для сохранения в архиве
+                arcname = os.path.basename(file_path)
+                zip_file.write(file_path, arcname)
+    
+    buffer.seek(0)
+    
+    # Формирование имени файла с текущей датой и временем
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"backup_{timestamp}.zip"
+    
+    # Возвращение ZIP-архива как потока
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={backup_filename}"}
+    )
