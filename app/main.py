@@ -33,7 +33,7 @@ security = HTTPBasic()
 
 def verify_credentials(credentials: HTTPBasicCredentials = Security(security)):
     correct_username = "admin"
-    correct_password = "imagebank4009"
+    correct_password = "imagebank2049"
     if credentials.username != correct_username or credentials.password != correct_password:
         raise HTTPException(
             status_code=401,
@@ -111,7 +111,7 @@ async def upload_image(
 async def search_images(request: Request, search: str = "", db: Session = Depends(get_db), credentials: HTTPBasicCredentials = Depends(verify_credentials)):
     query = db.query(Image)
     if search:
-        query = query.filter(Image.name.ilike(f"%{search}%"))
+        query = query.filter(Image.name.ilike(f"%{search}%")).limit(20)
     images = query.all()
     return templates.TemplateResponse("index.html", {
         "request": request,
