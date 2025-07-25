@@ -33,7 +33,7 @@ security = HTTPBasic()
 
 def verify_credentials(credentials: HTTPBasicCredentials = Security(security)):
     correct_username = "admin"
-    correct_password = "secret"
+    correct_password = "imagebank4009"
     if credentials.username != correct_username or credentials.password != correct_password:
         raise HTTPException(
             status_code=401,
