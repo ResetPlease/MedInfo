@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 import os
 import shutil
 import json
@@ -139,7 +140,6 @@ async def upload_image(
     return RedirectResponse(url=f"/image/{image.id}", status_code=303)
 
 
-# Поиск изображений по названию
 @app.get("/search", response_class=HTMLResponse)
 async def search_images(
     request: Request,
@@ -149,7 +149,12 @@ async def search_images(
 ):
     query = db.query(Image)
     if search:
-        query = query.filter(Image.name.ilike(f"%{search}%")).limit(20)
+        search = search.strip()
+
+        query = query.filter(
+            or_(Image.name.ilike(f"%{search}%"), Image.tags.ilike(f"%{search}%"))
+        ).limit(20)
+
     images = query.all()
     return templates.TemplateResponse(
         "index.html", {"request": request, "images": images, "search": search}
