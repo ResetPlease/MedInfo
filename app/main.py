@@ -7,6 +7,7 @@ from fastapi import (
     Depends,
     Request,
     Security,
+    Query
 )
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -23,6 +24,7 @@ from typing import List
 from datetime import datetime
 from .database import SessionLocal, init_db
 from .models import Image
+import re
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -83,15 +85,10 @@ async def read_root(
     db: Session = Depends(get_db),
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
     page: int = 1,
-    limit: int = 20,
+    limit: int = 12,
 ):
     total = db.query(func.count(Image.id)).scalar()
-    images = (
-        db.query(Image)
-        .offset((page - 1) * limit)
-        .limit(limit)
-        .all()
-    )
+    images = db.query(Image).offset((page - 1) * limit).limit(limit).all()
     total_pages = (total + limit - 1) // limit
     return templates.TemplateResponse(
         "index.html",
@@ -155,28 +152,83 @@ async def upload_image(
     return RedirectResponse(url=f"/image/{image.id}", status_code=303)
 
 
+def parse_search_query(query: str):
+    query = query.strip()
+
+    id_filters = []
+    id_matches = re.findall(r"id\s*([<>=]{1,2})\s*(\d+)", query)
+    for op, val in id_matches:
+        id_filters.append((op, int(val)))
+
+    id_colon = re.findall(r"id:(\d+)", query)
+    for val in id_colon:
+        id_filters.append(("=", int(val)))
+
+    tags = re.findall(r"tag:([^\s]+)", query)
+    tags = [t.lower() for t in tags]
+
+    cleaned_query = (
+        re.sub(r"(id\s*[<>=]{1,2}\s*\d+|id:\d+|tag:[^\s]+)", "", query).strip().lower()
+    )
+
+    return {"id_filters": id_filters, "tags": tags, "text_query": cleaned_query}
+
+def apply_search_filters(images: List, search_params: dict):
+    results = images
+
+    for op, val in search_params["id_filters"]:
+        if op == '=':
+            results = [img for img in results if img.id == val]
+        elif op == '>':
+            results = [img for img in results if img.id > val]
+        elif op == '<':
+            results = [img for img in results if img.id < val]
+        elif op == '>=':
+            results = [img for img in results if img.id >= val]
+        elif op == '<=':
+            results = [img for img in results if img.id <= val]
+
+    for tag in search_params["tags"]:
+        results = [img for img in results if tag in img.tags.lower().split(',')]
+
+    text = search_params["text_query"]
+    if text:
+        def fuzzy_match(img):
+            candidates = [img.name.lower()] + img.tags.lower().split(',')
+            for c in candidates:
+                if text.lower() in c:
+                    return True
+            return False
+
+        results = [img for img in results if fuzzy_match(img)]
+
+    return results
+
 @app.get("/search", response_class=HTMLResponse)
 async def search_images(
     request: Request,
     search: str = "",
     page: int = 1,
-    limit: int = 20,
+    limit: int = 12,
     db: Session = Depends(get_db),
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
 ):
-    query = db.query(Image)
-    if search:
-        search = search.strip()
-        query = query.filter(
-            or_(
-                Image.name.ilike(f"%{search}%"),
-                Image.tags.ilike(f"%{search}%"),
-            )
-        )
+    all_images = db.query(Image).all()
 
-    total = query.with_entities(func.count()).scalar()
-    images = query.offset((page - 1) * limit).limit(limit).all()
-    total_pages = (total + limit - 1) // limit
+    if search:
+        search_params = parse_search_query(search)
+        print(search_params)
+        filtered_images = apply_search_filters(all_images, search_params)
+    else:
+        filtered_images = all_images
+    
+    total = len(filtered_images)
+    from_search = min(len(filtered_images)-1, (page-1)*limit)
+    end_search = min(from_search + limit, len(filtered_images))
+    images = filtered_images[from_search:end_search]
+    total_pages = total//limit
+    if total % limit != 0:
+        total_pages+=1
 
     return templates.TemplateResponse(
         "index.html",
@@ -229,6 +281,7 @@ async def delete_image(
     # Перенаправление на главную страницу
     return RedirectResponse(url="/", status_code=303)
 
+
 @app.post("/image/{image_id}/update", response_class=RedirectResponse)
 async def update_image(
     image_id: int,
@@ -244,13 +297,16 @@ async def update_image(
     # Проверка тегов
     invalid_tags = [tag for tag in tags if tag not in ALLOWED_TAGS]
     if invalid_tags:
-        raise HTTPException(status_code=400, detail=f"Недопустимые теги: {invalid_tags}")
+        raise HTTPException(
+            status_code=400, detail=f"Недопустимые теги: {invalid_tags}"
+        )
 
     image.name = name
     image.tags = ",".join(tags)
     db.commit()
 
     return RedirectResponse(url=f"/image/{image.id}", status_code=303)
+
 
 # Создание и скачивание бэкапа
 @app.get("/backup")
