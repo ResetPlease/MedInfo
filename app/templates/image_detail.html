@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ image.name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 font-sans">
     <div class="container mx-auto p-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">{{ image.name }}</h1>
-        
+
         <div class="flex justify-center mb-6 space-x-4">
             <a href="/" class="bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 transition">
                 back
@@ -17,7 +19,8 @@
             <a href="/upload" class="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 transition">
                 new upload
             </a>
-            <form action="/image/{{ image.id }}/delete" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить это изображение?');">
+            <form action="/image/{{ image.id }}/delete" method="post"
+                onsubmit="return confirm('Вы уверены, что хотите удалить это изображение?');">
                 <button type="submit" class="bg-red-500 text-white p-2 rounded-md hover:bg-red-600 transition">
                     delete
                 </button>
@@ -27,8 +30,38 @@
         <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
             <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md mb-4">
             <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
+            <p class="text-gray-500 mb-2">ID: {{ image.id }}</p>
             <p class="text-gray-600">Tags: {{ image.tags }}</p>
         </div>
     </div>
+    <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto mt-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">Редактировать информацию</h2>
+    <form action="/image/{{ image.id }}/update" method="post" class="space-y-4">
+        <div>
+            <label for="name" class="block text-gray-700">Название:</label>
+            <input type="text" id="name" name="name" value="{{ image.name }}"
+                class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div>
+            <label class="block text-gray-700 mb-1">Теги:</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {% for tag in tags %}
+                <label class="inline-flex items-center space-x-2">
+                    <input type="checkbox" name="tags" value="{{ tag }}"
+                        {% if tag in image.tags.split(',') %}checked{% endif %}
+                        class="text-blue-500">
+                    <span>{{ tag }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+            Сохранить изменения
+        </button>
+    </form>
+</div>
 </body>
+
 </html>

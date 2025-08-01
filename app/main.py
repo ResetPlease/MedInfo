@@ -77,16 +77,31 @@ def get_db():
         db.close()
 
 
-# Главная страница с просмотром изображений
 @app.get("/", response_class=HTMLResponse)
 async def read_root(
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    page: int = 1,
+    limit: int = 20,
 ):
-    images = db.query(Image).all()
+    total = db.query(func.count(Image.id)).scalar()
+    images = (
+        db.query(Image)
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+    total_pages = (total + limit - 1) // limit
     return templates.TemplateResponse(
-        "index.html", {"request": request, "images": images, "search": ""}
+        "index.html",
+        {
+            "request": request,
+            "images": images,
+            "search": "",
+            "page": page,
+            "total_pages": total_pages,
+        },
     )
 
 
@@ -144,24 +159,37 @@ async def upload_image(
 async def search_images(
     request: Request,
     search: str = "",
+    page: int = 1,
+    limit: int = 20,
     db: Session = Depends(get_db),
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
 ):
     query = db.query(Image)
     if search:
         search = search.strip()
-
         query = query.filter(
-            or_(Image.name.ilike(f"%{search}%"), Image.tags.ilike(f"%{search}%"))
-        ).limit(20)
+            or_(
+                Image.name.ilike(f"%{search}%"),
+                Image.tags.ilike(f"%{search}%"),
+            )
+        )
 
-    images = query.all()
+    total = query.with_entities(func.count()).scalar()
+    images = query.offset((page - 1) * limit).limit(limit).all()
+    total_pages = (total + limit - 1) // limit
+
     return templates.TemplateResponse(
-        "index.html", {"request": request, "images": images, "search": search}
+        "index.html",
+        {
+            "request": request,
+            "images": images,
+            "search": search,
+            "page": page,
+            "total_pages": total_pages,
+        },
     )
 
 
-# Страница деталей изображения
 @app.get("/image/{image_id}", response_class=HTMLResponse)
 async def image_detail(
     request: Request,
@@ -173,7 +201,8 @@ async def image_detail(
     if not image:
         raise HTTPException(status_code=404, detail="Изображение не найдено")
     return templates.TemplateResponse(
-        "image_detail.html", {"request": request, "image": image}
+        "image_detail.html",
+        {"request": request, "image": image, "tags": ALLOWED_TAGS},
     )
 
 
@@ -200,6 +229,28 @@ async def delete_image(
     # Перенаправление на главную страницу
     return RedirectResponse(url="/", status_code=303)
 
+@app.post("/image/{image_id}/update", response_class=RedirectResponse)
+async def update_image(
+    image_id: int,
+    name: str = Form(...),
+    tags: List[str] = Form(...),
+    db: Session = Depends(get_db),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+):
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Изображение не найдено")
+
+    # Проверка тегов
+    invalid_tags = [tag for tag in tags if tag not in ALLOWED_TAGS]
+    if invalid_tags:
+        raise HTTPException(status_code=400, detail=f"Недопустимые теги: {invalid_tags}")
+
+    image.name = name
+    image.tags = ",".join(tags)
+    db.commit()
+
+    return RedirectResponse(url=f"/image/{image.id}", status_code=303)
 
 # Создание и скачивание бэкапа
 @app.get("/backup")
