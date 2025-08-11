@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Статистика — Wrinkles</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto max-w-screen-lg p-6">
+        <header class="mb-8">
+            <div
+                class="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-6 py-5 text-white">
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">
+                    <a href="/">Wrinkles DB — Статистика</a>
+                </h1>
+                <nav class="mt-4 sm:mt-0 flex space-x-4 text-lg font-medium">
+                    <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
+                    <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
+                    <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a>
+                    <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Статистика</a>
+                </nav>
+            </div>
+        </header>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4">Распределение тегов</h2>
+            <canvas id="tagsChart" height="120"></canvas>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4">Распределение тегов (в %)</h2>
+            <canvas id="tagsPieChart" height="120"></canvas>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4">Топ сочетаний тегов</h2>
+            <canvas id="tagCombosChart" height="120"></canvas>
+        </div>
+    </div>
+
+
+    <script>
+        async function loadTagStats() {
+            const resp = await fetch('/api/stats/tags');
+            const data = await resp.json();
+            new Chart(document.getElementById('tagsChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.tags,
+                    datasets: [{
+                        label: 'Количество',
+                        data: data.counts,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+
+        async function loadTagPercentPie() {
+            const resp = await fetch('/api/stats/tags-percent');
+            const data = await resp.json();
+            new Chart(document.getElementById('tagsPieChart'), {
+                type: 'pie',
+                data: {
+                    labels: data.tags,
+                    datasets: [{
+                        data: data.percentages,
+                        backgroundColor: data.tags.map((_, i) => `hsl(${i * 35 % 360}, 70%, 60%)`)
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        async function loadTagCombos() {
+            const resp = await fetch('/api/stats/tag-combos');
+            const data = await resp.json();
+            new Chart(document.getElementById('tagCombosChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.combos,
+                    datasets: [{
+                        label: 'Частота',
+                        data: data.counts,
+                        backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, indexAxis: 'y' }
+            });
+        }
+
+        loadTagStats();
+        loadTagPercentPie();
+        loadTagCombos();
+    </script>

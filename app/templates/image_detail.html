@@ -12,25 +12,24 @@
 <body class="bg-gray-100 font-sans">
   <div class="container mx-auto max-w-screen-lg p-6">
     <header class="mb-8">
-  <div
-    class="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-6 py-5 text-white">
-    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center gap-2">
-      <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2"
-        viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round"
-          d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
-      </svg>
-      <a href="/">Wrinkles<span class="hidden sm:inline-block"> DB</span></a>
-    </h1>
+      <div
+        class="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-6 py-5 text-white">
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center gap-2">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
+          </svg>
+          <a href="/">Wrinkles<span class="hidden sm:inline-block"> DB</span></a>
+        </h1>
 
-    <nav class="mt-4 sm:mt-0 flex space-x-4 text-lg font-medium">
-      <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
-      <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
-      <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a>
-    </nav>
-  </div>
-</header>
-
+        <nav class="mt-4 sm:mt-0 flex space-x-4 text-lg font-medium">
+          <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
+          <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
+          <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a>
+          <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Статистика</a>
+        </nav>
+      </div>
+    </header>
+  
     <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
       <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md mb-4" />
       <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
@@ -69,8 +68,8 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {% for tag in tags %}
             <label class="inline-flex items-center space-x-2">
-              <input type="checkbox" name="tags" value="{{ tag }}"
-                {% if tag in image.tags.split(',') %}checked{% endif %} class="text-blue-500" />
+              <input type="checkbox" name="tags" value="{{ tag }}" {% if tag in image.tags.split(',') %}checked{% endif
+                %} class="text-blue-500" />
               <span>{{ tag }}</span>
             </label>
             {% endfor %}

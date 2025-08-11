@@ -13,6 +13,7 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 def init_db():
     # Создание папки uploads, если не существует
     if not os.path.exists("app/uploads"):

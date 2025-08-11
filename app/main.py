@@ -7,7 +7,7 @@ from fastapi import (
     Depends,
     Request,
     Security,
-    Query
+    Query,
 )
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -25,6 +25,9 @@ from datetime import datetime
 from .database import SessionLocal, init_db
 from .models import Image
 import re
+from collections import Counter
+from itertools import combinations
+
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -102,6 +105,62 @@ async def read_root(
     )
 
 
+@app.get("/api/stats/tags")
+async def stats_tags(
+    db: Session = Depends(get_db),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+):
+    images = db.query(Image).all()
+    counter = Counter()
+    for img in images:
+        for tag in img.tags.split(","):
+            counter[tag.strip()] += 1
+    return {"tags": list(counter.keys()), "counts": list(counter.values())}
+
+
+@app.get("/api/stats/tags-percent")
+async def stats_tags_percent(
+    db: Session = Depends(get_db),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+):
+    images = db.query(Image).all()
+    tag_count = Counter()
+    total_tags = 0
+    for img in images:
+        tags = [t.strip() for t in img.tags.split(",") if t.strip()]
+        for t in tags:
+            tag_count[t] += 1
+            total_tags += 1
+    percentages = {tag: (count / total_tags * 100) for tag, count in tag_count.items()}
+    return {"tags": list(percentages.keys()), "percentages": list(percentages.values())}
+
+
+@app.get("/api/stats/tag-combos")
+async def stats_tag_combos(
+    db: Session = Depends(get_db),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+):
+    images = db.query(Image).all()
+    combo_count = Counter()
+    for img in images:
+        tags = sorted(set(t.strip() for t in img.tags.split(",") if t.strip()))
+        if len(tags) >= 2:
+            for combo in combinations(tags, 2):
+                combo_count[combo] += 1
+    top_combos = combo_count.most_common(5)  # топ-10 сочетаний
+    return {
+        "combos": [f"{a} + {b}" for a, b in dict(top_combos).keys()],
+        "counts": list(dict(top_combos).values()),
+    }
+
+
+@app.get("/stats", response_class=HTMLResponse)
+async def stats_page(
+    request: Request, credentials: HTTPBasicCredentials = Depends(verify_credentials)
+):
+    return templates.TemplateResponse("stats.html", {"request": request})
+
+
 # Страница загрузки
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(
@@ -173,28 +232,30 @@ def parse_search_query(query: str):
 
     return {"id_filters": id_filters, "tags": tags, "text_query": cleaned_query}
 
+
 def apply_search_filters(images: List, search_params: dict):
     results = images
 
     for op, val in search_params["id_filters"]:
-        if op == '=':
+        if op == "=":
             results = [img for img in results if img.id == val]
-        elif op == '>':
+        elif op == ">":
             results = [img for img in results if img.id > val]
-        elif op == '<':
+        elif op == "<":
             results = [img for img in results if img.id < val]
-        elif op == '>=':
+        elif op == ">=":
             results = [img for img in results if img.id >= val]
-        elif op == '<=':
+        elif op == "<=":
             results = [img for img in results if img.id <= val]
 
     for tag in search_params["tags"]:
-        results = [img for img in results if tag in img.tags.lower().split(',')]
+        results = [img for img in results if tag in img.tags.lower().split(",")]
 
     text = search_params["text_query"]
     if text:
+
         def fuzzy_match(img):
-            candidates = [img.name.lower()] + img.tags.lower().split(',')
+            candidates = [img.name.lower()] + img.tags.lower().split(",")
             for c in candidates:
                 if text.lower() in c:
                     return True
@@ -203,6 +264,7 @@ def apply_search_filters(images: List, search_params: dict):
         results = [img for img in results if fuzzy_match(img)]
 
     return results
+
 
 @app.get("/search", response_class=HTMLResponse)
 async def search_images(
@@ -221,14 +283,14 @@ async def search_images(
         filtered_images = apply_search_filters(all_images, search_params)
     else:
         filtered_images = all_images
-    
+
     total = len(filtered_images)
-    from_search = min(len(filtered_images)-1, (page-1)*limit)
+    from_search = min(len(filtered_images) - 1, (page - 1) * limit)
     end_search = min(from_search + limit, len(filtered_images))
     images = filtered_images[from_search:end_search]
-    total_pages = total//limit
+    total_pages = total // limit
     if total % limit != 0:
-        total_pages+=1
+        total_pages += 1
 
     return templates.TemplateResponse(
         "index.html",
