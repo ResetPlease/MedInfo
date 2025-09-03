@@ -156,9 +156,11 @@ async def stats_tag_combos(
 
 @app.get("/stats", response_class=HTMLResponse)
 async def stats_page(
-    request: Request, credentials: HTTPBasicCredentials = Depends(verify_credentials)
+    request: Request, credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    db: Session = Depends(get_db),
 ):
-    return templates.TemplateResponse("stats.html", {"request": request})
+    total = db.query(func.count(Image.id)).scalar()
+    return templates.TemplateResponse("stats.html", {"request": request, "total_images" : total})
 
 
 # Страница загрузки

@@ -21,21 +21,26 @@
                 <nav class="mt-4 sm:mt-0 flex space-x-4 text-lg font-medium">
                     <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
                     <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
-                    <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a>
+                    <!-- <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a> -->
                     <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Статистика</a>
                 </nav>
             </div>
         </header>
 
+        <div class="bg-white p-2 rounded-xl shadow-lg">
+            <h2>Всего изображений: {{total_images}}</h2>
+        </div>
+        <hr>
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h2 class="text-2xl font-semibold mb-4">Распределение тегов</h2>
             <canvas id="tagsChart" height="120"></canvas>
         </div>
+        <hr>
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h2 class="text-2xl font-semibold mb-4">Распределение тегов (в %)</h2>
             <canvas id="tagsPieChart" height="120"></canvas>
         </div>
-
+        <hr>
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h2 class="text-2xl font-semibold mb-4">Топ сочетаний тегов</h2>
             <canvas id="tagCombosChart" height="120"></canvas>
