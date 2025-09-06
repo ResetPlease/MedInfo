@@ -9,8 +9,9 @@ from fastapi import (
     Security,
     Query,
 )
+from pathlib import Path
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
@@ -27,6 +28,9 @@ from .models import Image
 import re
 from collections import Counter
 from itertools import combinations
+import io
+from PIL import Image as Img
+import sys
 
 
 app = FastAPI()
@@ -81,6 +85,37 @@ def get_db():
     finally:
         db.close()
 
+
+@app.get("/compress/uploads/{path}", response_class=StreamingResponse)
+async def get_compressed_photo(
+    request: Request,
+    path: str,
+    credentials: HTTPBasicCredentials = Depends(verify_credentials)
+):
+    base_dir = Path("app/uploads").resolve()
+    file_path = (base_dir / path).resolve()
+
+    if not file_path.is_file() or base_dir not in file_path.parents:
+        return Response(content="image not found", status_code=404)
+
+    ext = file_path.suffix.lower().lstrip(".")
+    if ext not in ["jpeg", "jpg", "png"]:
+        return Response(content="bad path or file ext", status_code=400)
+
+    with Image.open(file_path) as img:
+        max_size = (1280, 1280)
+        img.thumbnail(max_size)
+
+        img_byte_arr = io.BytesIO()
+        if ext in ["jpg", "jpeg"]:
+            img.save(img_byte_arr, format="JPEG", quality=70, optimize=True)
+        else:
+            img.save(img_byte_arr, format="PNG", optimize=True)
+
+        img_byte_arr.seek(0)
+
+    mime = "image/jpeg" if ext in ["jpg", "jpeg"] else f"image/{ext}"
+    return StreamingResponse(img_byte_arr, media_type=mime)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(

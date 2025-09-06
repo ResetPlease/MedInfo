@@ -48,7 +48,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       {% for image in images %}
-      <a href="/image/{{ image.id }}" class="block">
+      <a href="/compress/image/{{ image.id }}" class="block">
         <div
           class="bg-white rounded-lg shadow-md overflow-hidden transform hover:scale-105 hover:shadow-lg transition duration-300">
           <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-48 object-cover" />
