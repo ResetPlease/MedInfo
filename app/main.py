@@ -102,13 +102,13 @@ async def get_compressed_photo(
     if ext not in ["jpeg", "jpg", "png"]:
         return Response(content="bad path or file ext", status_code=400)
 
-    with Image.open(file_path) as img:
+    with Img.open(file_path) as img:
         max_size = (1280, 1280)
         img.thumbnail(max_size)
 
         img_byte_arr = io.BytesIO()
         if ext in ["jpg", "jpeg"]:
-            img.save(img_byte_arr, format="JPEG", quality=70, optimize=True)
+            img.save(img_byte_arr, format="JPEG", quality=20, optimize=True)
         else:
             img.save(img_byte_arr, format="PNG", optimize=True)
 
