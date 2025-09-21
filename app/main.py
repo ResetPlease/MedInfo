@@ -89,7 +89,7 @@ def get_db():
 
 UPLOAD_DIR = "app/uploads/predict"
 
-@app.post("/predict/")
+@app.post("/predict")
 async def predict(file: UploadFile = File(...),
                   credentials: HTTPBasicCredentials = Depends(verify_credentials),):
     if not os.path.exists(UPLOAD_DIR):
@@ -101,7 +101,7 @@ async def predict(file: UploadFile = File(...),
     labels = predict_wrinkles(file_path)
     return {"wrinkles": labels}
 
-@app.get("/predict/")
+@app.get("/predict")
 async def predict_template(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
