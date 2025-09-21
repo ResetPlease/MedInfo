@@ -103,14 +103,14 @@
         <nav class="mt-4 sm:mt-0 flex space-x-4 text-lg font-medium">
           <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
           <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
-          <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Классификация</a>
+          <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
           <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Статистика</a>
         </nav>
       </div>
     </header>
 
  <div class="bg-gradient-to-tr from-blue-50 to-purple-50 p-6 rounded-xl shadow-lg max-w-lg mx-auto space-y-4 relative overflow-hidden">
-  <h2 class="text-2xl font-bold text-gray-800 mb-4 relative z-10">Мульти-лейбл классификация морщин</h2>
+  <h2 class="text-2xl font-bold text-gray-800 mb-4 relative z-10">Мульти-лейбл magic</h2>
 
   <label id="selectLabel" for="imageInput" class="relative z-10 inline-block w-full cursor-pointer">
     <div class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-purple-600 hover:to-blue-500 text-white font-semibold py-2 px-4 rounded-lg text-center shadow-md hover:shadow-xl transition-all duration-300">
@@ -176,7 +176,10 @@
     magicBtn.disabled = true;
 
     try {
-      const response = await fetch("http://localhost:8000/predict/", { method: "POST", body: formData });
+      const response = await fetch("/predict/", {
+      method: "POST",
+      body: formData
+      });
       loader.classList.add("hidden");
       magicBtn.disabled = false;
 

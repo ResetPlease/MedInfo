@@ -58,9 +58,13 @@ def predict_wrinkles(image_path: str):
         if face is None:
             return []
 
-        # --- Подготовка тензора ---
-        face = face.unsqueeze(0).to(device)
-        face = transform(face.squeeze(0)).unsqueeze(0)  # дополнительный transform для согласования с обучением
+        # --- face уже Tensor [3, 224, 224] ---
+        face = face.unsqueeze(0).to(device)  # [1, 3, 224, 224]
+
+        # --- Нормализация ---
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                         std=[0.229, 0.224, 0.225])
+        face = normalize(face)
 
         # --- Инференс ---
         with torch.no_grad():
@@ -73,6 +77,7 @@ def predict_wrinkles(image_path: str):
     except Exception as e:
         print(f"[ERROR] predict_wrinkles: {e}")
         return []
+
 
 # === Пример использования ===
 if __name__ == "__main__":
