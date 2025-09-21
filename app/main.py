@@ -31,6 +31,8 @@ from itertools import combinations
 import io
 from PIL import Image as Img
 import sys
+import os
+from .inference import predict_wrinkles
 
 
 app = FastAPI()
@@ -84,6 +86,32 @@ def get_db():
         yield db
     finally:
         db.close()
+
+UPLOAD_DIR = "app/uploads/predict"
+
+@app.post("/predict/")
+async def predict(file: UploadFile = File(...),
+                  credentials: HTTPBasicCredentials = Depends(verify_credentials),):
+    if not os.path.exists(UPLOAD_DIR):
+        os.mkdir(UPLOAD_DIR)
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    labels = predict_wrinkles(file_path)
+    return {"wrinkles": labels}
+
+@app.get("/predict/")
+async def predict_template(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+):
+    return templates.TemplateResponse(
+        "predict.html",
+        {"request" : request},
+    )
+
+
 
 
 @app.get("/compress/uploads/{path}", response_class=StreamingResponse)
