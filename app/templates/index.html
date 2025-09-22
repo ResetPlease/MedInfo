@@ -26,7 +26,7 @@
           <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
           <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
           <!-- <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a> -->
-          <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Статистика</a>
+          <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
         </nav>
       </div>
     </header>
@@ -66,7 +66,7 @@
     </div>
 
     {% if total_pages > 1 %}
-    <div class="flex justify-center mt-8 space-x-2">
+    <div class="flex flex-wrap justify-center mt-8 gap-2 max-w-full">
       {% for p in range(1, total_pages + 1) %}
       {% if p == page %}
       <span class="px-4 py-2 bg-blue-500 text-white rounded">{{ p }}</span>

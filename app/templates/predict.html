@@ -12,15 +12,20 @@
       width: 50px;
       height: 50px;
       border: 5px solid rgba(0, 0, 0, 0.1);
-      border-top: 5px solid #4f46e5; 
+      border-top: 5px solid #4f46e5;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       box-shadow: 0 0 10px #4f46e5, 0 0 20px #4f46e5, 0 0 30px #4f46e5;
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     .tag {
@@ -83,8 +88,13 @@
     }
 
     @keyframes swing {
-      0% { transform: rotate(-2deg); }
-      100% { transform: rotate(2deg); }
+      0% {
+        transform: rotate(-2deg);
+      }
+
+      100% {
+        transform: rotate(2deg);
+      }
     }
   </style>
 </head>
@@ -92,7 +102,8 @@
 <body class="bg-gray-100 font-sans">
   <div class="container mx-auto max-w-screen-md p-6">
     <header class="mb-8">
-      <div class="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-6 py-5 text-white">
+      <div
+        class="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-6 py-5 text-white">
         <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center gap-2">
           <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
@@ -104,165 +115,212 @@
           <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
           <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
           <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
-          <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Статистика</a>
+          <!-- <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a> -->
+          <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
         </nav>
       </div>
     </header>
 
- <div class="bg-gradient-to-tr from-blue-50 to-purple-50 p-6 rounded-xl shadow-lg max-w-lg mx-auto space-y-4 relative overflow-hidden">
-  <h2 class="text-2xl font-bold text-gray-800 mb-4 relative z-10">Мульти-лейбл magic</h2>
+    <div
+      class="bg-gradient-to-tr from-blue-50 to-purple-50 p-6 rounded-xl shadow-lg max-w-lg mx-auto space-y-4 relative overflow-hidden">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4 relative z-10">Мульти-лейбл magic</h2>
 
-  <label id="selectLabel" for="imageInput" class="relative z-10 inline-block w-full cursor-pointer">
-    <div class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-purple-600 hover:to-blue-500 text-white font-semibold py-2 px-4 rounded-lg text-center shadow-md hover:shadow-xl transition-all duration-300">
-      Выбрать изображение
+      <label id="selectLabel" for="imageInput" class="relative z-10 inline-block w-full cursor-pointer">
+        <div
+          class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-purple-600 hover:to-blue-500 text-white font-semibold py-2 px-4 rounded-lg text-center shadow-md hover:shadow-xl transition-all duration-300">
+          Выбрать изображение
+        </div>
+        <input type="file" id="imageInput" accept=".jpg,.jpeg,.png" class="hidden">
+      </label>
+
+      <button id="magicBtn" onclick="predictImage()"
+        class="relative z-10 w-full py-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold shadow-md hover:shadow-2xl hover:scale-105 transition-all duration-300 transform hover:animate-glow hidden">
+        🔮 magic
+      </button>
+
+      <div id="previewContainer" class="flex justify-center mt-4">
+        <img id="previewImage" src="" alt="Preview"
+          class="hidden max-h-64 rounded-xl border-4 border-blue-500 shadow-lg animate-swing">
+      </div>
+
+      <div id="loader" class="hidden flex justify-center items-center my-4 relative z-10">
+        <div class="spinner"></div>
+      </div>
+
+      <div id="result" class="p-4 rounded-lg text-gray-900 font-medium hidden relative z-10 bg-white bg-opacity-60">
+        <h3 class="text-lg font-semibold mb-2">Предсказанные морщины:</h3>
+        <div id="tagsContainer" class="flex flex-wrap gap-2 justify-center"></div>
+        <button id="retryBtn" onclick="resetForm()"
+          class="mt-4 text-sm text-blue-600 hover:text-purple-600 transition-opacity opacity-70 hover:opacity-100">Попробовать
+          снова</button>
+      </div>
     </div>
-    <input type="file" id="imageInput" accept=".jpg,.jpeg,.png" class="hidden">
-  </label>
 
-  <button id="magicBtn" onclick="predictImage()" class="relative z-10 w-full py-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold shadow-md hover:shadow-2xl hover:scale-105 transition-all duration-300 transform hover:animate-glow hidden">
-    🔮 magic
-  </button>
+    <script>
+      const input = document.getElementById("imageInput");
+      const preview = document.getElementById("previewImage");
+      const selectLabel = document.getElementById("selectLabel");
+      const magicBtn = document.getElementById("magicBtn");
+      const resultDiv = document.getElementById("result");
+      const tagsContainer = document.getElementById("tagsContainer");
+      const loader = document.getElementById("loader");
+      const retryBtn = document.getElementById("retryBtn");
 
-  <div id="previewContainer" class="flex justify-center mt-4">
-    <img id="previewImage" src="" alt="Preview" class="hidden max-h-64 rounded-xl border-4 border-blue-500 shadow-lg animate-swing">
-  </div>
-
-  <div id="loader" class="hidden flex justify-center items-center my-4 relative z-10">
-    <div class="spinner"></div>
-  </div>
-
-  <div id="result" class="p-4 rounded-lg text-gray-900 font-medium hidden relative z-10 bg-white bg-opacity-60">
-    <h3 class="text-lg font-semibold mb-2">Предсказанные морщины:</h3>
-    <div id="tagsContainer" class="flex flex-wrap gap-2 justify-center"></div>
-    <button id="retryBtn" onclick="resetForm()" class="mt-4 text-sm text-blue-600 hover:text-purple-600 transition-opacity opacity-70 hover:opacity-100">Попробовать снова</button>
-  </div>
-</div>
-
-  <script>
-  const input = document.getElementById("imageInput");
-  const preview = document.getElementById("previewImage");
-  const selectLabel = document.getElementById("selectLabel");
-  const magicBtn = document.getElementById("magicBtn");
-  const resultDiv = document.getElementById("result");
-  const tagsContainer = document.getElementById("tagsContainer");
-  const loader = document.getElementById("loader");
-  const retryBtn = document.getElementById("retryBtn");
-
-  input.addEventListener("change", function () {
-    const file = input.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        preview.src = e.target.result;
-        preview.classList.remove("hidden");
-      };
-      reader.readAsDataURL(file);
-      selectLabel.classList.add("hidden");
-      magicBtn.classList.remove("hidden");
-    } else {
-      resetForm();
-    }
-  });
-
-  async function predictImage() {
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    const formData = new FormData();
-    formData.append("file", file);
-
-    loader.classList.remove("hidden");
-    resultDiv.classList.remove("show");
-    tagsContainer.innerHTML = "";
-    magicBtn.disabled = true;
-
-    try {
-      const response = await fetch("/predict", {
-      method: "POST",
-      body: formData
+      input.addEventListener("change", function () {
+        const file = input.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            preview.src = e.target.result;
+            preview.classList.remove("hidden");
+          };
+          reader.readAsDataURL(file);
+          selectLabel.classList.add("hidden");
+          magicBtn.classList.remove("hidden");
+        } else {
+          resetForm();
+        }
       });
-      loader.classList.add("hidden");
-      magicBtn.disabled = false;
 
-      if (!response.ok) throw new Error(`Ошибка: ${response.statusText}`);
+      async function predictImage() {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append("file", file);
 
-      const data = await response.json();
-      if (data.wrinkles && data.wrinkles.length > 0) {
-        data.wrinkles.forEach((tag, index) => {
-          const span = document.createElement("span");
-          span.className = "tag";
-          span.style.animationDelay = `${index * 0.1}s`;
-          span.textContent = tag;
-          tagsContainer.appendChild(span);
-        });
-      } else {
-        const span = document.createElement("span");
-        span.className = "tag";
-        span.style.background = "#777";
-        span.style.animation = "none";
-        span.textContent = "Морщины не обнаружены";
-        tagsContainer.appendChild(span);
+        loader.classList.remove("hidden");
+        resultDiv.classList.remove("show");
+        tagsContainer.innerHTML = "";
+        magicBtn.disabled = true;
+
+        try {
+          const response = await fetch("/predict", {
+            method: "POST",
+            body: formData
+          });
+          loader.classList.add("hidden");
+          magicBtn.disabled = false;
+
+          if (!response.ok) throw new Error(`Ошибка: ${response.statusText}`);
+
+          const data = await response.json();
+          if (data.wrinkles && data.wrinkles.length > 0) {
+            data.wrinkles.forEach((tag, index) => {
+              const span = document.createElement("span");
+              span.className = "tag";
+              span.style.animationDelay = `${index * 0.1}s`;
+              span.textContent = tag;
+              tagsContainer.appendChild(span);
+            });
+          } else {
+            const span = document.createElement("span");
+            span.className = "tag";
+            span.style.background = "#777";
+            span.style.animation = "none";
+            span.textContent = "Морщины не обнаружены";
+            tagsContainer.appendChild(span);
+          }
+
+          resultDiv.classList.remove("hidden");
+          setTimeout(() => resultDiv.classList.add("show"), 50);
+        } catch (err) {
+          loader.classList.add("hidden");
+          magicBtn.disabled = false;
+          resultDiv.classList.remove("hidden");
+          resultDiv.classList.add("show");
+          tagsContainer.innerHTML = "<span class='tag' style='background:#f87171; animation:none;'>Ошибка при отправке изображения</span>";
+          console.error(err);
+        }
       }
 
-      resultDiv.classList.remove("hidden");
-      setTimeout(() => resultDiv.classList.add("show"), 50);
-    } catch (err) {
-      loader.classList.add("hidden");
-      magicBtn.disabled = false;
-      resultDiv.classList.remove("hidden");
-      resultDiv.classList.add("show");
-      tagsContainer.innerHTML = "<span class='tag' style='background:#f87171; animation:none;'>Ошибка при отправке изображения</span>";
-      console.error(err);
-    }
-  }
+      function resetForm() {
+        input.value = "";
+        preview.src = "";
+        preview.classList.add("hidden");
+        selectLabel.classList.remove("hidden");
+        magicBtn.classList.add("hidden");
+        resultDiv.classList.add("hidden");
+        tagsContainer.innerHTML = "";
+      }
+    </script>
 
-  function resetForm() {
-    input.value = "";
-    preview.src = "";
-    preview.classList.add("hidden");
-    selectLabel.classList.remove("hidden");
-    magicBtn.classList.add("hidden");
-    resultDiv.classList.add("hidden");
-    tagsContainer.innerHTML = "";
-  }
-</script>
+    <style>
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-top: 4px solid #4f46e5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        box-shadow: 0 0 10px #4f46e5, 0 0 20px #9333ea;
+      }
 
-<style>
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(0,0,0,0.1);
-    border-top: 4px solid #4f46e5;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    box-shadow: 0 0 10px #4f46e5, 0 0 20px #9333ea;
-  }
-  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
 
-  .tag {
-    background: linear-gradient(135deg, #4f46e5, #9333ea);
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: white;
-    box-shadow: 0 0 5px #4f46e5, 0 0 10px #9333ea;
-    opacity: 0;
-    transform: translateY(-10px);
-    animation: fadeInTag 0.5s forwards;
-    cursor: default;
-  }
-  .tag:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 10px #fff, 0 0 20px #4f46e5, 0 0 30px #9333ea;
-  }
-  @keyframes fadeInTag { to { opacity: 1; transform: translateY(0); } }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
 
-  .animate-swing { animation: swing 2s ease-in-out infinite alternate; }
-  @keyframes swing { 0% { transform: rotate(-2deg); } 100% { transform: rotate(2deg); } }
+      .tag {
+        background: linear-gradient(135deg, #4f46e5, #9333ea);
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: white;
+        box-shadow: 0 0 5px #4f46e5, 0 0 10px #9333ea;
+        opacity: 0;
+        transform: translateY(-10px);
+        animation: fadeInTag 0.5s forwards;
+        cursor: default;
+      }
 
-  @keyframes glow { 0%,100% { box-shadow: 0 0 15px #fff, 0 0 20px #4f46e5; } 50% { box-shadow: 0 0 25px #fff, 0 0 35px #9333ea; } }
-  .animate-glow { animation: glow 1.2s ease-in-out infinite alternate; }
-</style>
+      .tag:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 10px #fff, 0 0 20px #4f46e5, 0 0 30px #9333ea;
+      }
+
+      @keyframes fadeInTag {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-swing {
+        animation: swing 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes swing {
+        0% {
+          transform: rotate(-2deg);
+        }
+
+        100% {
+          transform: rotate(2deg);
+        }
+      }
+
+      @keyframes glow {
+
+        0%,
+        100% {
+          box-shadow: 0 0 15px #fff, 0 0 20px #4f46e5;
+        }
+
+        50% {
+          box-shadow: 0 0 25px #fff, 0 0 35px #9333ea;
+        }
+      }
+
+      .animate-glow {
+        animation: glow 1.2s ease-in-out infinite alternate;
+      }
+    </style>
 </body>
 
 </html>
