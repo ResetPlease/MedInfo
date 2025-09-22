@@ -11,7 +11,13 @@ from fastapi import (
 )
 from pathlib import Path
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, Response, FileResponse
+from fastapi.responses import (
+    HTMLResponse,
+    RedirectResponse,
+    StreamingResponse,
+    Response,
+    FileResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
@@ -87,11 +93,15 @@ def get_db():
     finally:
         db.close()
 
+
 UPLOAD_DIR = "app/uploads/predict"
 
+
 @app.post("/predict")
-async def predict(file: UploadFile = File(...),
-                  credentials: HTTPBasicCredentials = Depends(verify_credentials),):
+async def predict(
+    file: UploadFile = File(...),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+):
     if not os.path.exists(UPLOAD_DIR):
         os.mkdir(UPLOAD_DIR)
     file_path = os.path.join(UPLOAD_DIR, file.filename)
@@ -101,6 +111,7 @@ async def predict(file: UploadFile = File(...),
     labels = predict_wrinkles(file_path)
     return {"wrinkles": labels}
 
+
 @app.get("/predict")
 async def predict_template(
     request: Request,
@@ -108,17 +119,15 @@ async def predict_template(
 ):
     return templates.TemplateResponse(
         "predict.html",
-        {"request" : request},
+        {"request": request},
     )
-
-
 
 
 @app.get("/compress/uploads/{path}", response_class=StreamingResponse)
 async def get_compressed_photo(
     request: Request,
     path: str,
-    credentials: HTTPBasicCredentials = Depends(verify_credentials)
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
 ):
     base_dir = Path("app/uploads").resolve()
     file_path = (base_dir / path).resolve()
@@ -144,6 +153,7 @@ async def get_compressed_photo(
 
     mime = "image/jpeg" if ext in ["jpg", "jpeg"] else f"image/{ext}"
     return StreamingResponse(img_byte_arr, media_type=mime)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(
@@ -219,11 +229,14 @@ async def stats_tag_combos(
 
 @app.get("/stats", response_class=HTMLResponse)
 async def stats_page(
-    request: Request, credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
     db: Session = Depends(get_db),
 ):
     total = db.query(func.count(Image.id)).scalar()
-    return templates.TemplateResponse("stats.html", {"request": request, "total_images" : total})
+    return templates.TemplateResponse(
+        "stats.html", {"request": request, "total_images": total}
+    )
 
 
 # Страница загрузки
@@ -275,7 +288,6 @@ async def upload_image(
     # Перенаправление на страницу деталей изображения
     return RedirectResponse(url=f"/image/{image.id}", status_code=303)
 
-
 def parse_search_query(query: str):
     query = query.strip()
 
@@ -288,19 +300,37 @@ def parse_search_query(query: str):
     for val in id_colon:
         id_filters.append(("=", int(val)))
 
+    # --- NEW: count filters ---
+    count_filters = []
+    count_matches = re.findall(r"count\s*([<>=]{1,2})\s*(\d+)", query)
+    for op, val in count_matches:
+        count_filters.append((op, int(val)))
+
     tags = re.findall(r"tag:([^\s]+)", query)
     tags = [t.lower() for t in tags]
 
     cleaned_query = (
-        re.sub(r"(id\s*[<>=]{1,2}\s*\d+|id:\d+|tag:[^\s]+)", "", query).strip().lower()
+        re.sub(
+            r"(id\s*[<>=]{1,2}\s*\d+|id:\d+|count\s*[<>=]{1,2}\s*\d+|tag:[^\s]+)",
+            "",
+            query,
+        )
+        .strip()
+        .lower()
     )
 
-    return {"id_filters": id_filters, "tags": tags, "text_query": cleaned_query}
+    return {
+        "id_filters": id_filters,
+        "count_filters": count_filters,  # добавляем
+        "tags": tags,
+        "text_query": cleaned_query,
+    }
 
 
 def apply_search_filters(images: List, search_params: dict):
     results = images
 
+    # --- фильтр по ID ---
     for op, val in search_params["id_filters"]:
         if op == "=":
             results = [img for img in results if img.id == val]
@@ -313,9 +343,24 @@ def apply_search_filters(images: List, search_params: dict):
         elif op == "<=":
             results = [img for img in results if img.id <= val]
 
+    # --- фильтр по Count ---
+    for op, val in search_params["count_filters"]:
+        if op == "=":
+            results = [img for img in results if len(img.tags.split(",")) == val]
+        elif op == ">":
+            results = [img for img in results if len(img.tags.split(",")) > val]
+        elif op == "<":
+            results = [img for img in results if len(img.tags.split(",")) < val]
+        elif op == ">=":
+            results = [img for img in results if len(img.tags.split(",")) >= val]
+        elif op == "<=":
+            results = [img for img in results if len(img.tags.split(",")) <= val]
+
+    # --- фильтр по тегам ---
     for tag in search_params["tags"]:
         results = [img for img in results if tag in img.tags.lower().split(",")]
 
+    # --- текстовый поиск ---
     text = search_params["text_query"]
     if text:
 
