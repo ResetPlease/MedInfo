@@ -176,7 +176,7 @@
     magicBtn.disabled = true;
 
     try {
-      const response = await fetch("/predict/", {
+      const response = await fetch("/predict", {
       method: "POST",
       body: formData
       });
