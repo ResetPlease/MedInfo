@@ -8,6 +8,41 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
   <style>
+    #accountMenu {
+      z-index: 1000;
+    }
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade {
+      animation: fade 0.2s ease-out;
+    }
+
+    @keyframes slide {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide {
+      animation: slide 0.3s ease-out;
+    }
+
     .spinner {
       width: 50px;
       height: 50px;
@@ -103,21 +138,65 @@
   <div class="container mx-auto max-w-screen-md p-6">
     <header class="mb-8">
       <div
-        class="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-6 py-5 text-white">
-        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center gap-2">
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
+        class="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-4 sm:px-6 py-4 text-white">
+        <!-- ЛОГО -->
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
           </svg>
-          <a href="/">Wrinkles<span class="hidden sm:inline-block"> DB</span></a>
+          <a href="/" class="hover:text-yellow-300 transition">Wrinkles<span
+              class="hidden sm:inline-block"> DB</span></a>
         </h1>
 
-        <nav class="mt-4 sm:mt-0 flex space-x-4 text-lg font-medium">
+        <!-- КНОПКА ГАМБУРГЕР -->
+        <button class="sm:hidden p-2 rounded-lg hover:bg-white/20 transition" onclick="toggleMobileNav()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <!-- ДЕСКТОП МЕНЮ -->
+        <nav id="desktopNav" class="hidden sm:flex items-center gap-6 text-lg font-medium">
           <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
           <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
           <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
-          <!-- <a href="/backup" class="hover:underline hover:text-yellow-200 transition">Бэкап</a> -->
           <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
+
+          <!-- АККАУНТ -->
+          <div class="relative">
+            <button onclick="toggleMenu()"
+              class="text-sm bg-white/10 hover:bg-white/20 rounded px-2 py-1">Аккаунт</button>
+            <div id="accountMenu"
+              class="hidden absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg py-2 animate-fade">
+              <div
+                class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}
+              </div>
+              <form action="/logout" method="post">
+                <button
+                  class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm rounded-b-xl">Выйти</button>
+              </form>
+            </div>
+          </div>
         </nav>
+      </div>
+
+      <!-- МОБИЛЬНОЕ МЕНЮ -->
+      <div id="mobileMenu"
+        class="sm:hidden hidden bg-gradient-to-r from-blue-600 to-purple-600 rounded-b-xl px-4 py-3 text-white animate-slide">
+        <div class="flex flex-col gap-3">
+          <a href="/" class="hover:underline">Главная</a>
+          <a href="/upload" class="hover:underline">Загрузить</a>
+          <a href="/predict" class="hover:underline">Magic</a>
+          <a href="/stats" class="hover:underline">Info</a>
+          <form action="/logout" method="post" class="mt-1">
+            <button class="text-sm bg-white/20 hover:bg-white/30 rounded px-2 py-1 w-max">
+              Выйти ({{ request.state.current_user.username }})
+            </button>
+          </form>
+        </div>
       </div>
     </header>
 
@@ -321,6 +400,28 @@
         animation: glow 1.2s ease-in-out infinite alternate;
       }
     </style>
+<script>
+  function toggleMobileNav() {
+    const m = document.getElementById('mobileMenu');
+    if (m) m.classList.toggle('hidden');
+  }
+  function toggleMenu() {
+    const m = document.getElementById('accountMenu');
+    if (m) m.classList.toggle('hidden');
+  }
+  window.addEventListener('click', (e) => {
+    const mobileMenu = document.getElementById('mobileMenu');
+    if (mobileMenu && !e.target.closest('#mobileMenu') && !e.target.closest('button')) {
+      // не всегда закрываем, т.к. может быть другой клик по кнопкам
+    }
+    const menu = document.getElementById('accountMenu');
+    const trigger = e.target.closest('button');
+    if (!menu) return;
+    if (!e.target.closest('#accountMenu') && (!trigger || trigger.textContent.trim() !== 'Аккаунт')) {
+      menu.classList.add('hidden');
+    }
+  });
+</script>
 </body>
 
 </html>

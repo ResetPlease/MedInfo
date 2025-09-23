@@ -30,7 +30,7 @@ from io import BytesIO
 from typing import List
 from datetime import datetime
 from .database import SessionLocal, init_db
-from .models import Image
+from .models import Image, User, Tag, ImageTag
 import re
 from collections import Counter
 from itertools import combinations
@@ -42,50 +42,13 @@ from .inference import predict_wrinkles
 
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
 templates = Jinja2Templates(directory="app/templates")
 
-# Предопределенные теги
-ALLOWED_TAGS = [
-    "Лобные морщины",
-    "Гусиные лапки",
-    "Носослезная борозда",
-    "Веко-скуловая борозда",
-    "Малярный мешок",
-    "Щечно-скуловая борозда",
-    "Кисетные морщины губ",
-    "Носогубные складки",
-    "Складка марионетки",
-    "Межбровные морщины",
-    # "Кроличьи морщины",
-    # "Морщины подбородка",
-]
+# Теги теперь берём из базы (см. Tag)
 
-# Захардкоженные учетные данные
 security = HTTPBasic()
 
 
-def verify_credentials(credentials: HTTPBasicCredentials = Security(security)):
-    correct_username = "admin"
-    correct_password = "imagebank2049"
-    if (
-        credentials.username != correct_username
-        or credentials.password != correct_password
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Неверный логин или пароль",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials
-
-
-# Создание базы данных при старте
-init_db()
-
-
-# Зависимость для получения сессии базы данных
 def get_db():
     db = SessionLocal()
     try:
@@ -94,13 +57,56 @@ def get_db():
         db.close()
 
 
+def get_current_user(
+    request: Request,
+    credentials: HTTPBasicCredentials = Security(security),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.username == credentials.username).first()
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Неверный логин или пароль",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    # Проверяем bcrypt-хеш; при неудаче пробуем прямое сравнение (для обратной совместимости)
+    verified = False
+    try:
+        from passlib.hash import bcrypt
+
+        if user.password_hash and bcrypt.identify(user.password_hash):
+            verified = bcrypt.verify(credentials.password, user.password_hash)
+        else:
+            verified = credentials.password == user.password_hash
+    except Exception:
+        verified = credentials.password == user.password_hash
+
+    if not verified:
+        raise HTTPException(
+            status_code=401,
+            detail="Неверный логин или пароль",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    # Прокидываем текущего пользователя в request.state для шаблонов
+    try:
+        request.state.current_user = user
+    except Exception:
+        pass
+    return user
+
+
+# Создание базы данных при старте
+init_db()
+
+
 UPLOAD_DIR = "app/uploads/predict"
 
 
 @app.post("/predict")
 async def predict(
     file: UploadFile = File(...),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     if not os.path.exists(UPLOAD_DIR):
         os.mkdir(UPLOAD_DIR)
@@ -115,56 +121,37 @@ async def predict(
 @app.get("/predict")
 async def predict_template(
     request: Request,
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     return templates.TemplateResponse(
         "predict.html",
         {"request": request},
     )
 
-
-@app.get("/compress/uploads/{path}", response_class=StreamingResponse)
-async def get_compressed_photo(
-    request: Request,
-    path: str,
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
-):
-    base_dir = Path("app/uploads").resolve()
-    file_path = (base_dir / path).resolve()
-
-    if not file_path.is_file() or base_dir not in file_path.parents:
-        return Response(content="image not found", status_code=404)
-
-    ext = file_path.suffix.lower().lstrip(".")
-    if ext not in ["jpeg", "jpg", "png"]:
-        return Response(content="bad path or file ext", status_code=400)
-
-    with Img.open(file_path) as img:
-        max_size = (1280, 1280)
-        img.thumbnail(max_size)
-
-        img_byte_arr = io.BytesIO()
-        if ext in ["jpg", "jpeg"]:
-            img.save(img_byte_arr, format="JPEG", quality=20, optimize=True)
-        else:
-            img.save(img_byte_arr, format="PNG", optimize=True)
-
-        img_byte_arr.seek(0)
-
-    mime = "image/jpeg" if ext in ["jpg", "jpeg"] else f"image/{ext}"
-    return StreamingResponse(img_byte_arr, media_type=mime)
+@app.post("/logout")
+async def logout():
+    # Провоцируем браузер забыть Basic-Auth, отдав 401 и заголовок WWW-Authenticate
+    raise HTTPException(
+        status_code=401,
+        detail="Вы вышли из системы",
+        headers={"WWW-Authenticate": "Basic"},
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(
     request: Request,
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
     page: int = 1,
     limit: int = 12,
+    unverified: bool = Query(False),
 ):
-    total = db.query(func.count(Image.id)).scalar()
-    images = db.query(Image).offset((page - 1) * limit).limit(limit).all()
+    query = db.query(Image)
+    if unverified and current_user.role == "master":
+        query = query.filter((Image.is_verified == False) | (Image.is_verified.is_(None)))
+    total = query.with_entities(func.count(Image.id)).scalar()
+    images = query.offset((page - 1) * limit).limit(limit).all()
     total_pages = (total + limit - 1) // limit
     return templates.TemplateResponse(
         "index.html",
@@ -174,6 +161,7 @@ async def read_root(
             "search": "",
             "page": page,
             "total_pages": total_pages,
+            "unverified": bool(unverified and current_user.role == "master"),
         },
     )
 
@@ -181,7 +169,7 @@ async def read_root(
 @app.get("/api/stats/tags")
 async def stats_tags(
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     images = db.query(Image).all()
     counter = Counter()
@@ -194,7 +182,7 @@ async def stats_tags(
 @app.get("/api/stats/tags-percent")
 async def stats_tags_percent(
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     images = db.query(Image).all()
     tag_count = Counter()
@@ -211,7 +199,7 @@ async def stats_tags_percent(
 @app.get("/api/stats/tag-combos")
 async def stats_tag_combos(
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     images = db.query(Image).all()
     combo_count = Counter()
@@ -230,7 +218,7 @@ async def stats_tag_combos(
 @app.get("/stats", response_class=HTMLResponse)
 async def stats_page(
     request: Request,
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     total = db.query(func.count(Image.id)).scalar()
@@ -242,28 +230,51 @@ async def stats_page(
 # Страница загрузки
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(
-    request: Request, credentials: HTTPBasicCredentials = Depends(verify_credentials)
+    request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    tag_names = [t.name for t in db.query(Tag).order_by(Tag.name.asc()).all()]
     return templates.TemplateResponse(
-        "upload.html", {"request": request, "tags": ALLOWED_TAGS}
+        "upload.html", {"request": request, "tags": tag_names}
     )
 
 
-# Загрузка изображения и тегов
+# Helper function for tag management
+def _get_tags_by_names(db: Session, tag_names: List[str]) -> List[Tag]:
+    normalized = [t.strip() for t in tag_names if t and t.strip()]
+    if not normalized:
+        return []
+    return db.query(Tag).filter(Tag.name.in_(normalized)).all()
+
+
+def _sync_image_tags(db: Session, image: Image, tag_names: List[str]):
+    tags = _get_tags_by_names(db, tag_names)
+    current_ids = {link.tag_id for link in image.tag_links}
+    wanted_ids = {t.id for t in tags}
+
+    # Удаляем лишние
+    for link in list(image.tag_links):
+        if link.tag_id not in wanted_ids:
+            db.delete(link)
+
+    # Добавляем недостающие
+    for t in tags:
+        if t.id not in current_ids:
+            db.add(ImageTag(image_id=image.id, tag_id=t.id))
+
+
 @app.post("/upload")
 async def upload_image(
     file: UploadFile = File(...),
     name: str = Form(...),
     tags: List[str] = Form(...),
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
-    # Проверка тегов
-    invalid_tags = [tag for tag in tags if tag not in ALLOWED_TAGS]
+    # Проверка тегов по базе: все выбранные должны существовать
+    existing_names = {t.name for t in _get_tags_by_names(db, tags)}
+    invalid_tags = [tag for tag in tags if tag not in existing_names]
     if invalid_tags:
-        raise HTTPException(
-            status_code=400, detail=f"Недопустимые теги: {invalid_tags}"
-        )
+        raise HTTPException(status_code=400, detail=f"Недопустимые теги: {invalid_tags}")
 
     # Сохранение файла
     file_extension = file.filename.split(".")[-1]
@@ -280,8 +291,20 @@ async def upload_image(
         shutil.copyfileobj(file.file, buffer)
 
     # Сохранение в базе данных
-    image = Image(name=name, file_path=f"/uploads/{filename}", tags=",".join(tags))
+    image = Image(
+        name=name,
+        file_path=f"/uploads/{filename}",
+        tags=",".join(tags),  # legacy
+        author_id=current_user.id,
+        # uploaded_at поставится по умолчанию
+        is_verified=False,
+    )
     db.add(image)
+    db.flush()
+
+    # Нормализация тегов в отдельную таблицу
+    _sync_image_tags(db, image, tags)
+
     db.commit()
     db.refresh(image)
 
@@ -383,7 +406,8 @@ async def search_images(
     page: int = 1,
     limit: int = 12,
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
+    unverified: bool = Query(False),
 ):
     all_images = db.query(Image).all()
 
@@ -393,6 +417,11 @@ async def search_images(
         filtered_images = apply_search_filters(all_images, search_params)
     else:
         filtered_images = all_images
+
+    if unverified and current_user.role == "master":
+        filtered_images = [
+            img for img in filtered_images if not getattr(img, "is_verified", False)
+        ]
 
     total = len(filtered_images)
     from_search = min(len(filtered_images) - 1, (page - 1) * limit)
@@ -410,6 +439,7 @@ async def search_images(
             "search": search,
             "page": page,
             "total_pages": total_pages,
+            "unverified": bool(unverified and current_user.role == "master"),
         },
     )
 
@@ -419,14 +449,21 @@ async def image_detail(
     request: Request,
     image_id: int,
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Изображение не найдено")
+    tag_names = [t.name for t in db.query(Tag).order_by(Tag.name.asc()).all()]
+    prev_image = db.query(Image).filter(Image.id < image.id).order_by(Image.id.desc()).first()
+    if not prev_image:
+        prev_image = Image(id=0)
+    next_image = db.query(Image).filter(Image.id > image.id).order_by(Image.id.asc()).first()
+    if not next_image:
+        next_image = Image(id=0)
     return templates.TemplateResponse(
         "image_detail.html",
-        {"request": request, "image": image, "tags": ALLOWED_TAGS},
+        {"request": request, "image": image, "tags": tag_names, "prev_id": prev_image.id, "next_id": next_image.id},
     )
 
 
@@ -435,7 +472,7 @@ async def image_detail(
 async def delete_image(
     image_id: int,
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
@@ -460,44 +497,114 @@ async def update_image(
     name: str = Form(...),
     tags: List[str] = Form(...),
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Изображение не найдено")
 
-    # Проверка тегов
-    invalid_tags = [tag for tag in tags if tag not in ALLOWED_TAGS]
+    # Проверка тегов по базе
+    existing_names = {t.name for t in _get_tags_by_names(db, tags)}
+    invalid_tags = [tag for tag in tags if tag not in existing_names]
     if invalid_tags:
-        raise HTTPException(
-            status_code=400, detail=f"Недопустимые теги: {invalid_tags}"
-        )
+        raise HTTPException(status_code=400, detail=f"Недопустимые теги: {invalid_tags}")
 
     image.name = name
     image.tags = ",".join(tags)
+
+    # Обновляем нормализованные теги
+    _sync_image_tags(db, image, tags)
+
     db.commit()
 
     return RedirectResponse(url=f"/image/{image.id}", status_code=303)
+
+
+# Админка управления тегами (только master)
+@app.get("/admin/tags", response_class=HTMLResponse)
+async def tags_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    tags = db.query(Tag).order_by(Tag.name.asc()).all()
+    return templates.TemplateResponse("tags.html", {"request": request, "tags": tags})
+
+
+@app.post("/admin/tags")
+async def create_tag(
+    name: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Название тега не может быть пустым")
+    exists = db.query(Tag).filter(func.lower(Tag.name) == name.lower()).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Тег уже существует")
+    db.add(Tag(name=name))
+    db.commit()
+    return RedirectResponse(url="/admin/tags", status_code=303)
+
+
+@app.post("/admin/tags/{tag_id}/delete")
+async def delete_tag(
+    tag_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Тег не найден")
+    # Имя тега до удаления
+    tag_name = tag.name
+
+    # 1) Удаляем тег из legacy-строки Image.tags для всех изображений
+    images = db.query(Image).filter(Image.tags.isnot(None)).all()
+    for img in images:
+        if not img.tags:
+            continue
+        parts = [p.strip() for p in img.tags.split(",") if p.strip()]
+        new_parts = [p for p in parts if p != tag_name]
+        if len(new_parts) != len(parts):
+            img.tags = ",".join(new_parts)
+
+    # 2) Удаляем связи image_tags явно, затем сам тег
+    db.query(ImageTag).filter(ImageTag.tag_id == tag.id).delete(synchronize_session=False)
+    db.delete(tag)
+    db.commit()
+    return RedirectResponse(url="/admin/tags", status_code=303)
 
 
 # Создание и скачивание бэкапа
 @app.get("/backup")
 async def create_backup(
     db: Session = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    current_user: User = Depends(get_current_user),
 ):
     # Получение всех изображений из базы данных
     images = db.query(Image).all()
 
     # Создание JSON с метаданными
-    metadata = [
-        {
-            "name": image.name,
-            "file_path": image.file_path,
-            "tags": image.tags.split(","),
-        }
-        for image in images
-    ]
+    metadata = []
+    for image in images:
+        metadata.append(
+            {
+                "name": image.name,
+                "file_path": image.file_path,
+                "tags": image.tags.split(","),
+                "author_id": image.author_id,
+                "uploaded_at": image.uploaded_at.isoformat() if image.uploaded_at else None,
+                "is_verified": bool(image.is_verified),
+            }
+        )
 
     # Создание ZIP-архива в памяти
     buffer = BytesIO()
@@ -528,3 +635,64 @@ async def create_backup(
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={backup_filename}"},
     )
+
+
+# Маркировка изображения как проверенного (только master)
+@app.post("/image/{image_id}/verify", response_class=RedirectResponse)
+async def verify_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Изображение не найдено")
+
+    image.is_verified = True
+    db.commit()
+    return RedirectResponse(url=f"/image/{image.id}", status_code=303)
+
+
+# Админские роуты для регистрации пользователей (только master)
+@app.get("/admin/users", response_class=HTMLResponse)
+async def create_user_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    return templates.TemplateResponse("register.html", {"request": request})
+
+
+@app.post("/admin/users")
+async def create_user(
+    username: str = Form(...),
+    password: str = Form(...),
+    role: str = Form("slave"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "master":
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+
+    role = role if role in ("master", "slave") else "slave"
+
+    # Проверка уникальности
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=400, detail="Пользователь уже существует")
+
+    try:
+        from passlib.hash import bcrypt
+
+        password_hash = bcrypt.hash(password)
+    except Exception:
+        password_hash = password
+
+    user = User(username=username, password_hash=password_hash, role=role)
+    db.add(user)
+    db.commit()
+
+    return RedirectResponse(url="/admin/users", status_code=303)
