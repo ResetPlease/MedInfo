@@ -3,3 +3,4 @@
 *.png
 *.db
 *best_wrinkle_model.pth*
+.venv/

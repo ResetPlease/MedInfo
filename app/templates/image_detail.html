@@ -125,6 +125,13 @@
           Удалить
         </button>
       </form>
+      <form action="/image_editor">
+        <input type="hidden" name="image_id" value="{{ image.id }}" /> 
+        <button
+          class="px-5 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-pink-500 text-white hover:bg-pink-600">
+          Разметить
+        </button>
+      </form>
     </div>
 
     <div class="border-b border-gray-300 my-8"></div>

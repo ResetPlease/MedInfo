@@ -16,6 +16,7 @@ Base = declarative_base()
 
 
 def init_db():
+    from . import models
     # Создание папки uploads, если не существует
     if not os.path.exists("app/uploads"):
         os.makedirs("app/uploads")
