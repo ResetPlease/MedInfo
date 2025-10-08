@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     UniqueConstraint,
+    JSON
 )
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -21,6 +22,16 @@ class User(Base):
 
     images = relationship("Image", back_populates="author")
 
+
+class Segmentation(Base):
+    __tablename__ = "segmentations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
+    label = Column(String, nullable=False)  # название морщины
+    data = Column(JSON, nullable=True)  # полигоны [{points: [[x,y],...]}]
+
+    image = relationship("Image", back_populates="segmentations")
 
 class Image(Base):
     __tablename__ = "images"
@@ -38,6 +49,7 @@ class Image(Base):
 
     author = relationship("User", back_populates="images")
     tag_links = relationship("ImageTag", back_populates="image", cascade="all, delete-orphan")
+    segmentations = relationship("Segmentation", back_populates="image", cascade="all, delete-orphan")
 
 
 class Tag(Base):

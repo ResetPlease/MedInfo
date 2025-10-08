@@ -30,7 +30,7 @@ from io import BytesIO
 from typing import List
 from datetime import datetime
 from .database import SessionLocal, init_db
-from .models import Image, User, Tag, ImageTag
+from .models import Image, User, Tag, ImageTag, Segmentation
 import re
 from collections import Counter
 from itertools import combinations
@@ -101,6 +101,57 @@ init_db()
 
 
 UPLOAD_DIR = "app/uploads/predict"
+
+
+@app.post("/segmentations/{image_id}/{label}")
+def save_segmentation(
+    image_id: int,
+    label: str,
+    data: List[List[dict]],
+    db: Session = Depends(get_db)
+):
+    seg = db.query(Segmentation).filter_by(image_id=image_id, label=label).first()
+    if seg:
+        seg.data = data
+    else:
+        seg = Segmentation(image_id=image_id, label=label, data=data)
+        db.add(seg)
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.delete("/segmentations/{image_id}/{label}")
+def delete_segmentation(image_id: int, label: str, db: Session = Depends(get_db)):
+    seg = db.query(Segmentation).filter_by(image_id=image_id, label=label).first()
+    if seg:
+        db.delete(seg)
+        db.commit()
+    return {"status": "deleted"}
+
+
+@app.get("/segmentations/{image_id}")
+def get_segmentations(image_id: int, db: Session = Depends(get_db)):
+    segs = db.query(Segmentation).filter_by(image_id=image_id).all()
+    return {seg.label: seg.data for seg in segs}
+
+
+@app.get("/image_editor", response_class=HTMLResponse)
+async def image_editor(
+    request: Request,
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Изображение не найдено")
+
+    tag_names = image.tags.split(",") if image.tags else []
+
+    return templates.TemplateResponse(
+        "image_editor.html",
+        {"request": request, "image": image, "tags": tag_names},
+    )
 
 
 @app.post("/predict")
@@ -308,8 +359,8 @@ async def upload_image(
     db.commit()
     db.refresh(image)
 
-    # Перенаправление на страницу деталей изображения
-    return RedirectResponse(url=f"/image/{image.id}", status_code=303)
+    # Перенаправление на страницу edit изображения
+    return RedirectResponse(url=f"/image_editor?image_id={image.id}", status_code=303)
 
 def parse_search_query(query: str):
     query = query.strip()

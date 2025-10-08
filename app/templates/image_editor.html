@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Разметка фото</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            cursor: crosshair;
+            max-width: 90vw;
+            max-height: 80vh;
+        }
+        #tag-selector {
+            margin-top: 10px;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            margin-right: 5px;
+        }
+        pre {
+            text-align: left;
+            max-width: 90vw;
+            overflow-x: auto;
+        }
+
+        #warning {
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Разметка фото</h1>
+
+    <div id="warning">В режиме "Все морщины" рисовать нельзя</div>
+
+    <div id="tag-selector">
+        <label for="tag">Выберите тег:</label>
+        <select id="tag">
+            <option value="__all__">Все морщины</option>
+            {% for tag in tags %}
+            <option value="{{ tag }}">{{ tag }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="imageCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <button id="finishLine" style="color: green;">Завершить линию</button>
+        <button id="clearCurrentLine">Очистить текущую линию</button>
+        <button id="deleteTag" style="color: red;">Удалить для текущей морщины</button>
+        <button id="showJSON">Показать JSON</button>
+        <button id="goHome">Домой Уолтер</button>
+    </div>
+
+    <pre id="output"></pre>
+
+    <script>
+        const imageId = "{{ image.id }}";
+        const imageUrl = "{{ image.file_path }}";
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const tagSelect = document.getElementById('tag');
+        const warning = document.getElementById('warning');
+
+        let currentTag = tagSelect.value;
+        let marks = {};
+        let currentLine = [];
+        let scale = 1;
+        const img = new Image();
+        img.src = imageUrl;
+
+        img.onload = () => {
+            resizeCanvas();
+            window.addEventListener("resize", resizeCanvas);
+            loadSegmentations();
+        };
+
+        tagSelect.addEventListener("change", () => {
+            currentTag = tagSelect.value;
+            updateWarning();
+            drawMarks();
+        });
+
+        function updateWarning() {
+            if (currentTag === "__all__") {
+                warning.style.display = "block";
+            } else {
+                warning.style.display = "none";
+            }
+        }
+
+        function resizeCanvas() {
+            const containerWidth = window.innerWidth * 0.9;
+            const containerHeight = window.innerHeight * 0.8;
+            const imgRatio = img.width / img.height;
+            const containerRatio = containerWidth / containerHeight;
+            scale = imgRatio > containerRatio
+                ? containerWidth / img.width
+                : containerHeight / img.height;
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            drawMarks();
+        }
+
+        canvas.addEventListener("click", (e) => {
+            if (currentTag === "__all__") return;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / scale;
+            const y = (e.clientY - rect.top) / scale;
+            currentLine.push({ x: x / img.width, y: y / img.height });
+            drawMarks();
+        });
+
+        document.getElementById("finishLine").addEventListener("click", async () => {
+            if (currentTag === "__all__") return;
+            if (!marks[currentTag]) marks[currentTag] = [];
+            if (currentLine.length > 0) {
+                marks[currentTag].push(currentLine);
+                currentLine = [];
+                drawMarks();
+                await saveSegmentation();
+            }
+        });
+
+        document.getElementById("clearCurrentLine").addEventListener("click", () => {
+            currentLine = [];
+            drawMarks();
+        });
+
+        document.getElementById("deleteTag").addEventListener("click", async () => {
+            if (currentTag === "__all__") return;
+            await fetch(`/segmentations/${imageId}/${currentTag}`, { method: "DELETE" });
+            marks[currentTag] = [];
+            currentLine = [];
+            drawMarks();
+        });
+
+        document.getElementById("showJSON").addEventListener("click", () => {
+            document.getElementById("output").textContent = JSON.stringify(marks, null, 2);
+        });
+
+        document.getElementById("goHome").addEventListener("click", () => {
+            window.location.href = `/image/${imageId}`;
+        });
+
+        async function loadSegmentations() {
+            const res = await fetch(`/segmentations/${imageId}`);
+            if (!res.ok) return;
+            marks = await res.json();
+            drawMarks();
+        }
+
+        async function saveSegmentation() {
+            await fetch(`/segmentations/${imageId}/${currentTag}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(marks[currentTag] || [])
+            });
+        }
+
+        function drawMarks() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const tagsToDraw = currentTag === "__all__"
+                ? Object.keys(marks)
+                : [currentTag];
+
+            for (const tag of tagsToDraw) {
+                if (!marks[tag]) continue;
+                ctx.strokeStyle = tag === currentTag ? "red" : "rgba(255, 0, 0, 0.8)";
+                ctx.lineWidth = 2;
+
+                marks[tag].forEach(line => {
+                    ctx.beginPath();
+                    line.forEach((point, index) => {
+                        const px = point.x * img.width * scale;
+                        const py = point.y * img.height * scale;
+                        if (index === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    });
+                    ctx.stroke();
+                });
+            }
+
+            if (currentTag !== "__all__" && currentLine.length > 0) {
+                ctx.strokeStyle = "green";
+                ctx.beginPath();
+                currentLine.forEach((point, index) => {
+                    const px = point.x * img.width * scale;
+                    const py = point.y * img.height * scale;
+                    if (index === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+            }
+        }
+
+        updateWarning();
+    </script>
+</body>
+</html>
