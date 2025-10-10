@@ -65,7 +65,7 @@
         <label class="text-sm">Цвет:</label>
         <input id="colorPicker" type="color" value="#ff3b30" title="Цвет текущей линии" />
         <label class="text-sm ml-2">Толщина:</label>
-        <input id="thickness" type="range" min="2" max="24" value="5" />
+        <input id="thickness" type="range" min="1" max="24" value="5" />
       </div>
 
       <div class="flex items-center gap-2">
@@ -252,12 +252,13 @@
       ctx.lineCap = 'round';
 
       const tagsToDraw = currentTag === "__all__" ? Object.keys(marks) : [currentTag];
-
+      const minLineWidth = 2;
       for (const tag of tagsToDraw) {
         if (!marks[tag]) continue;
         const baseColor = colorForTag(tag);
         ctx.strokeStyle = tag === currentTag ? baseColor : fadeColor(baseColor, 0.7);
-        ctx.lineWidth = Math.max(4, Math.round(parseInt(thicknessInput.value || 10, 10) * 0.6));
+        
+        ctx.lineWidth = Math.max(minLineWidth, Math.round(parseInt(thicknessInput.value || 10, 10) * 0.6));
         marks[tag].forEach(line => {
           if (!line.length) return;
           ctx.beginPath();
@@ -274,7 +275,7 @@
       // current line
       if (currentTag !== "__all__" && currentLine.length > 0) {
         ctx.strokeStyle = colorPicker.value || '#ff3b30';
-        ctx.lineWidth = Math.max(6, parseInt(thicknessInput.value || 10, 10));
+        ctx.lineWidth = Math.max(minLineWidth, parseInt(thicknessInput.value || 10, 10));
         ctx.beginPath();
         currentLine.forEach((point, index) => {
           const px = point.x * canvas.width;
