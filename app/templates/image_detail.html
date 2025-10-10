@@ -90,23 +90,30 @@
       </div>
     </header>
   
-    <!-- КАРТИНКА -->
-    <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-      <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md mb-4" />
-      <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
-      <p class="text-gray-500 mb-2">ID: {{ image.id }}</p>
+    <!-- КАРТИНКА (с canvas overlay для отображения линий) -->
+<div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+  <div class="relative mb-4">
+    <img id="mainImage" src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md" />
+    <canvas id="overlayCanvas"
+            class="absolute left-0 top-0 rounded-md"
+            style="pointer-events: none; width: 100%; height: 100%;"></canvas>
+  </div>
 
-      <div class="flex flex-wrap gap-2">
-        {% for tag in image.tags.split(',') %}
-        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{{ tag }}</span>
-        {% endfor %}
-      </div>
-      <div class="text-sm text-gray-500 mt-3 space-y-0.5">
-        <p>Автор: {{ image.author.username if image.author else 'admin' }}</p>
-        <p>Загружено: {{ image.uploaded_at if image.uploaded_at else '—' }}</p>
-        <p>Проверено: {{ 'да' if image.is_verified else 'нет' }}</p>
-      </div>
-    </div>
+  <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
+  <p class="text-gray-500 mb-2">ID: {{ image.id }}</p>
+
+  <div class="flex flex-wrap gap-2">
+    {% for tag in image.tags.split(',') %}
+    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{{ tag }}</span>
+    {% endfor %}
+  </div>
+  <div class="text-sm text-gray-500 mt-3 space-y-0.5">
+    <p>Автор: {{ image.author.username if image.author else 'admin' }}</p>
+    <p>Загружено: {{ image.uploaded_at if image.uploaded_at else '—' }}</p>
+    <p>Проверено: {{ 'да' if image.is_verified else 'нет' }}</p>
+  </div>
+</div>
+
 
     <!-- КНОПКИ Проверить/Удалить -->
     <div class="flex justify-center mt-6 space-x-4">
@@ -213,6 +220,106 @@
       }
     });
   </script>
+  <script>
+  (function () {
+    const imageId = "{{ image.id }}";
+    const imgEl = document.getElementById('mainImage');
+    const canvas = document.getElementById('overlayCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let marks = {}; // загрузится с сервера: { tag: [ [ {x,y}, ... ], ... ], ... }
+    function resizeOverlay() {
+      const rect = imgEl.getBoundingClientRect();
+      // canvas.width/height — в пикселях; синхронизируем с отображаемым (CSS) размером
+      const w = Math.max(1, Math.round(rect.width));
+      const h = Math.max(1, Math.round(rect.height));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+      }
+      drawMarks();
+    }
+
+    // если координата <=1 — считаем нормализованной; иначе — абсолютной (px)
+    function normalizePoint(p) {
+      const xn = (typeof p.x === 'number' && p.x <= 1) ? p.x : (p.x / (imgEl.naturalWidth || canvas.width));
+      const yn = (typeof p.y === 'number' && p.y <= 1) ? p.y : (p.y / (imgEl.naturalHeight || canvas.height));
+      return { x: Math.max(0, Math.min(1, xn)), y: Math.max(0, Math.min(1, yn)) };
+    }
+
+    function drawMarks() {
+      if (!canvas.width || !canvas.height) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const strokeColor = 'rgba(16,185,129,0.95)'; // tailwind green-500
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
+  
+      const lw = Math.max(2, Math.round(Math.min(canvas.width, canvas.height) * 0.012));
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = strokeColor;
+
+      for (const tag in marks) {
+        const lines = marks[tag];
+        if (!Array.isArray(lines)) continue;
+        lines.forEach(line => {
+          if (!Array.isArray(line) || line.length === 0) return;
+          ctx.beginPath();
+          line.forEach((pt, i) => {
+            const n = normalizePoint(pt);
+            const px = n.x * canvas.width;
+            const py = n.y * canvas.height;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+        });
+      }
+    }
+
+    async function loadAndDraw() {
+      try {
+        const res = await fetch(`/segmentations/${imageId}`);
+        if (!res.ok) return; // ничего не рисуем, если нет данных
+        marks = await res.json();
+        resizeOverlay();
+      } catch (err) {
+        console.warn('Не удалось загрузить сегментации:', err);
+      }
+    }
+
+    
+    imgEl.addEventListener('load', () => {
+    
+      resizeOverlay();
+      loadAndDraw();
+    });
+    
+    if (imgEl.complete && imgEl.naturalWidth) {
+      resizeOverlay();
+      loadAndDraw();
+    }
+
+
+    window.addEventListener('resize', () => {
+
+      clearTimeout(window.__overlayResizeTimeout);
+      window.__overlayResizeTimeout = setTimeout(resizeOverlay, 80);
+    });
+
+    try {
+      const wrapper = imgEl.parentElement;
+      if (window.ResizeObserver && wrapper) {
+        const ro = new ResizeObserver(() => resizeOverlay());
+        ro.observe(wrapper);
+      }
+    } catch (e) { /* ignore */ }
+  })();
+</script>
+
 </body>
 
 </html>

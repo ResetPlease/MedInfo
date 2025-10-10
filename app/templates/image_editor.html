@@ -1,220 +1,321 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Разметка фото</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-        #canvas-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 20px;
-        }
-        canvas {
-            border: 1px solid #ccc;
-            cursor: crosshair;
-            max-width: 90vw;
-            max-height: 80vh;
-        }
-        #tag-selector {
-            margin-top: 10px;
-        }
-        #controls {
-            margin-top: 20px;
-        }
-        button {
-            margin-right: 5px;
-        }
-        pre {
-            text-align: left;
-            max-width: 90vw;
-            overflow-x: auto;
-        }
-
-        #warning {
-            color: red;
-            font-weight: bold;
-            margin-top: 10px;
-            display: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wrinkles - Разметка</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .canvas-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(250,250,255,0.4));
+      border-radius: 12px;
+      padding: 12px;
+    }
+    canvas {
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.08);
+      touch-action: none;
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    #warning { display: none; }
+    @media (max-width: 768px) {
+      #controls-panel { gap: 8px; }
+    }
+  </style>
 </head>
-<body>
-    <h1>Разметка фото</h1>
+<body class="bg-gray-50 font-sans text-gray-800">
+  <header class="max-w-screen-lg mx-auto p-4">
+    <div class="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl px-4 py-3 shadow-sm">
+      <div class="flex items-center gap-3">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
+        </svg>
+        <div>
+          <div class="font-bold text-lg">Wrinkles — Разметка</div>
+        </div>
+      </div>
+      <nav class="hidden sm:flex items-center gap-3 text-sm">
+        <a href="/" class="hover:underline">Главная</a>
+        <a href="/upload" class="hover:underline">Загрузить</a>
+        <a href="/predict" class="hover:underline">Magic</a>
+      </nav>
+    </div>
+  </header>
 
-    <div id="warning">В режиме "Все морщины" рисовать нельзя</div>
+  <main class="max-w-screen-lg mx-auto p-4 space-y-4">
+    <div id="warning" class="text-center text-red-600 font-semibold">В режиме "Все морщины" рисовать нельзя</div>
 
-    <div id="tag-selector">
-        <label for="tag">Выберите тег:</label>
-        <select id="tag">
-            <option value="__all__">Все морщины</option>
-            {% for tag in tags %}
-            <option value="{{ tag }}">{{ tag }}</option>
-            {% endfor %}
+    <div id="controls-panel" class="flex flex-wrap items-center justify-center gap-3">
+      <div class="flex items-center gap-2 bg-white rounded-md px-3 py-2 shadow-sm">
+        <label for="tag" class="text-sm">Выберите тег:</label>
+        <select id="tag" class="ml-1 min-w-[170px] text-sm">
+          <option value="__all__">Все морщины</option>
+          {% for tag in tags %}
+          <option value="{{ tag }}">{{ tag }}</option>
+          {% endfor %}
         </select>
+      </div>
+
+      <div class="flex items-center gap-2 bg-white rounded-md px-3 py-2 shadow-sm">
+        <label class="text-sm">Цвет:</label>
+        <input id="colorPicker" type="color" value="#ff3b30" title="Цвет текущей линии" />
+        <label class="text-sm ml-2">Толщина:</label>
+        <input id="thickness" type="range" min="2" max="24" value="5" />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="finishLine" class="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200">Завершить линию</button>
+        <button id="clearCurrentLine" class="bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">Очистить текущую</button>
+        <button id="deleteTag" class="bg-red-100 text-red-800 px-3 py-1 rounded hover:bg-red-200">Удалить для текущей</button>
+        <button id="showJSON" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Показать JSON</button>
+        <button id="goHome" class="bg-white border px-3 py-1 rounded hover:bg-gray-50">Домой Уолтер</button>
+      </div>
     </div>
 
-    <div id="canvas-container">
-        <canvas id="imageCanvas"></canvas>
+    <div class="canvas-wrap max-w-full">
+      <canvas id="imageCanvas" role="img" aria-label="Canvas для разметки"></canvas>
     </div>
 
-    <div id="controls">
-        <button id="finishLine" style="color: green;">Завершить линию</button>
-        <button id="clearCurrentLine">Очистить текущую линию</button>
-        <button id="deleteTag" style="color: red;">Удалить для текущей морщины</button>
-        <button id="showJSON">Показать JSON</button>
-        <button id="goHome">Домой Уолтер</button>
-    </div>
+    <pre id="output" class="bg-white p-3 rounded-md shadow-sm max-h-60 overflow-auto"></pre>
+  </main>
 
-    <pre id="output"></pre>
+  <script>
+    const imageId = "{{ image.id }}";
+    const imageUrl = "{{ image.file_path }}";
 
-    <script>
-        const imageId = "{{ image.id }}";
-        const imageUrl = "{{ image.file_path }}";
-        const canvas = document.getElementById('imageCanvas');
-        const ctx = canvas.getContext('2d');
-        const tagSelect = document.getElementById('tag');
-        const warning = document.getElementById('warning');
+    const canvas = document.getElementById('imageCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const tagSelect = document.getElementById('tag');
+    const warning = document.getElementById('warning');
+    const colorPicker = document.getElementById('colorPicker');
+    const thicknessInput = document.getElementById('thickness');
 
-        let currentTag = tagSelect.value;
-        let marks = {};
-        let currentLine = [];
-        let scale = 1;
-        const img = new Image();
-        img.src = imageUrl;
+    let currentTag = tagSelect.value;
+    let marks = {};           // { tag: [ [ {x,y}, ... ], ... ] }  points normalized 0..1
+    let currentLine = [];     // array of normalized points while drawing
+    let img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = imageUrl;
 
-        img.onload = () => {
-            resizeCanvas();
-            window.addEventListener("resize", resizeCanvas);
-            loadSegmentations();
-        };
+    let isDrawing = false;
 
-        tagSelect.addEventListener("change", () => {
-            currentTag = tagSelect.value;
-            updateWarning();
-            drawMarks();
+    img.onload = () => {
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      loadSegmentations();
+    };
+
+    tagSelect.addEventListener('change', () => {
+      currentTag = tagSelect.value;
+      updateWarning();
+      drawMarks();
+    });
+
+    function updateWarning() {
+      warning.style.display = currentTag === '__all__' ? 'block' : 'none';
+    }
+
+    function resizeCanvas() {
+      // лимиты по макс ширине/высоте
+      const maxW = Math.min(window.innerWidth * 0.94, 1200);
+      const maxH = Math.min(window.innerHeight * 0.74, 900);
+
+      const imgRatio = img.width / img.height;
+      const containerRatio = maxW / maxH;
+      const scale = imgRatio > containerRatio ? (maxW / img.width) : (maxH / img.height);
+      const cssW = Math.max(1, Math.round(img.width * Math.min(scale, 1)));
+      const cssH = Math.max(1, Math.round(img.height * Math.min(scale, 1)));
+
+      // canvas pixel size = CSS size (без setTransform)
+      canvas.width = cssW;
+      canvas.height = cssH;
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+
+      drawMarks();
+    }
+
+    // все координаты нормализованы относительно видимого размера canvas (CSS-px)
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const xCss = e.clientX - rect.left;
+      const yCss = e.clientY - rect.top;
+      const nx = Math.max(0, Math.min(1, xCss / rect.width));
+      const ny = Math.max(0, Math.min(1, yCss / rect.height));
+      return { x: nx, y: ny };
+    }
+
+    canvas.addEventListener('click', (e) => {
+      if (currentTag === '__all__') return;
+      const p = getPointerPos(e);
+      currentLine.push(p);
+      drawMarks();
+    });
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (currentTag === '__all__') return;
+      isDrawing = true;
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      const p = getPointerPos(e);
+      currentLine.push(p);
+      drawMarks();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!isDrawing) return;
+      const p = getPointerPos(e);
+      const last = currentLine[currentLine.length - 1];
+      if (!last || distance(last, p) > 0.0025) {
+        currentLine.push(p);
+        drawMarks();
+      }
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      if (!isDrawing) return;
+      isDrawing = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      drawMarks();
+    });
+
+    function distance(a, b) {
+      const dx = a.x - b.x, dy = a.y - b.y;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    // buttons
+    document.getElementById("finishLine").addEventListener("click", async () => {
+      if (currentTag === "__all__") return;
+      if (!marks[currentTag]) marks[currentTag] = [];
+      if (currentLine.length > 0) {
+        marks[currentTag].push(currentLine.slice());
+        currentLine = [];
+        drawMarks();
+        await saveSegmentation();
+      }
+    });
+
+    document.getElementById("clearCurrentLine").addEventListener("click", () => {
+      currentLine = [];
+      drawMarks();
+    });
+
+    document.getElementById("deleteTag").addEventListener("click", async () => {
+      if (currentTag === "__all__") return;
+      await fetch(`/segmentations/${imageId}/${currentTag}`, { method: "DELETE" });
+      marks[currentTag] = [];
+      currentLine = [];
+      drawMarks();
+    });
+
+    document.getElementById("showJSON").addEventListener("click", () => {
+      document.getElementById("output").textContent = JSON.stringify(marks, null, 2);
+      document.getElementById("output").scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    document.getElementById("goHome").addEventListener("click", () => {
+      window.location.href = `/image/${imageId}`;
+    });
+
+    async function loadSegmentations() {
+      try {
+        const res = await fetch(`/segmentations/${imageId}`);
+        if (!res.ok) return;
+        marks = await res.json();
+        drawMarks();
+      } catch (err) {
+        console.warn('Не удалось загрузить сегментации', err);
+      }
+    }
+    async function saveSegmentation() {
+      try {
+        await fetch(`/segmentations/${imageId}/${currentTag}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(marks[currentTag] || [])
         });
+      } catch (err) {
+        console.warn('Не удалось сохранить сегментацию', err);
+      }
+    }
 
-        function updateWarning() {
-            if (currentTag === "__all__") {
-                warning.style.display = "block";
-            } else {
-                warning.style.display = "none";
-            }
-        }
+    function drawMarks() {
+      if (!img.width || !img.height) return;
+      // очищаем и рисуем картинку во весь canvas (canvas.width/height уже в CSS pixels)
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        function resizeCanvas() {
-            const containerWidth = window.innerWidth * 0.9;
-            const containerHeight = window.innerHeight * 0.8;
-            const imgRatio = img.width / img.height;
-            const containerRatio = containerWidth / containerHeight;
-            scale = imgRatio > containerRatio
-                ? containerWidth / img.width
-                : containerHeight / img.height;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            drawMarks();
-        }
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
 
-        canvas.addEventListener("click", (e) => {
-            if (currentTag === "__all__") return;
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / scale;
-            const y = (e.clientY - rect.top) / scale;
-            currentLine.push({ x: x / img.width, y: y / img.height });
-            drawMarks();
+      const tagsToDraw = currentTag === "__all__" ? Object.keys(marks) : [currentTag];
+
+      for (const tag of tagsToDraw) {
+        if (!marks[tag]) continue;
+        const baseColor = colorForTag(tag);
+        ctx.strokeStyle = tag === currentTag ? baseColor : fadeColor(baseColor, 0.7);
+        ctx.lineWidth = Math.max(4, Math.round(parseInt(thicknessInput.value || 10, 10) * 0.6));
+        marks[tag].forEach(line => {
+          if (!line.length) return;
+          ctx.beginPath();
+          line.forEach((point, index) => {
+            const px = point.x * canvas.width;
+            const py = point.y * canvas.height;
+            if (index === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
         });
+      }
 
-        document.getElementById("finishLine").addEventListener("click", async () => {
-            if (currentTag === "__all__") return;
-            if (!marks[currentTag]) marks[currentTag] = [];
-            if (currentLine.length > 0) {
-                marks[currentTag].push(currentLine);
-                currentLine = [];
-                drawMarks();
-                await saveSegmentation();
-            }
+      // current line
+      if (currentTag !== "__all__" && currentLine.length > 0) {
+        ctx.strokeStyle = colorPicker.value || '#ff3b30';
+        ctx.lineWidth = Math.max(6, parseInt(thicknessInput.value || 10, 10));
+        ctx.beginPath();
+        currentLine.forEach((point, index) => {
+          const px = point.x * canvas.width;
+          const py = point.y * canvas.height;
+          if (index === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
         });
+        ctx.stroke();
+      }
+    }
 
-        document.getElementById("clearCurrentLine").addEventListener("click", () => {
-            currentLine = [];
-            drawMarks();
-        });
+    // colors
+    function colorForTag(tag) {
+      let h = 0;
+      for (let i = 0; i < tag.length; i++) h = (h << 5) - h + tag.charCodeAt(i);
+      h = Math.abs(h) % 360;
+      return hslToHex(h, 80, 50);
+    }
+    function fadeColor(hex, alpha) {
+      const c = hexToRgb(hex);
+      return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+    }
+    function hexToRgb(hex) {
+      const h = hex.replace('#','');
+      return { r: parseInt(h.substring(0,2),16), g: parseInt(h.substring(2,4),16), b: parseInt(h.substring(4,6),16) };
+    }
+    function hslToHex(h, s, l) {
+      s /= 100; l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => {
+        const color = l - a * Math.max(Math.min(k(n) - 3, 9 - k(n), 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
 
-        document.getElementById("deleteTag").addEventListener("click", async () => {
-            if (currentTag === "__all__") return;
-            await fetch(`/segmentations/${imageId}/${currentTag}`, { method: "DELETE" });
-            marks[currentTag] = [];
-            currentLine = [];
-            drawMarks();
-        });
+    colorPicker.addEventListener('input', drawMarks);
+    thicknessInput.addEventListener('input', drawMarks);
 
-        document.getElementById("showJSON").addEventListener("click", () => {
-            document.getElementById("output").textContent = JSON.stringify(marks, null, 2);
-        });
-
-        document.getElementById("goHome").addEventListener("click", () => {
-            window.location.href = `/image/${imageId}`;
-        });
-
-        async function loadSegmentations() {
-            const res = await fetch(`/segmentations/${imageId}`);
-            if (!res.ok) return;
-            marks = await res.json();
-            drawMarks();
-        }
-
-        async function saveSegmentation() {
-            await fetch(`/segmentations/${imageId}/${currentTag}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(marks[currentTag] || [])
-            });
-        }
-
-        function drawMarks() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            const tagsToDraw = currentTag === "__all__"
-                ? Object.keys(marks)
-                : [currentTag];
-
-            for (const tag of tagsToDraw) {
-                if (!marks[tag]) continue;
-                ctx.strokeStyle = tag === currentTag ? "red" : "rgba(255, 0, 0, 0.8)";
-                ctx.lineWidth = 2;
-
-                marks[tag].forEach(line => {
-                    ctx.beginPath();
-                    line.forEach((point, index) => {
-                        const px = point.x * img.width * scale;
-                        const py = point.y * img.height * scale;
-                        if (index === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    });
-                    ctx.stroke();
-                });
-            }
-
-            if (currentTag !== "__all__" && currentLine.length > 0) {
-                ctx.strokeStyle = "green";
-                ctx.beginPath();
-                currentLine.forEach((point, index) => {
-                    const px = point.x * img.width * scale;
-                    const py = point.y * img.height * scale;
-                    if (index === 0) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
-                });
-                ctx.stroke();
-            }
-        }
-
-        updateWarning();
-    </script>
+    updateWarning();
+  </script>
 </body>
 </html>
