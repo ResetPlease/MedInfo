@@ -87,7 +87,8 @@
               {% if request.state.current_user.username == 'sophy' %}
               <div class="px-3 py-2 text-sm text-gray-600 truncate border-b">Бобик</div>
               {% else %}
-              <div class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}</div>
+              <div class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}
+              </div>
               {% endif %}
               <form action="/logout" method="post">
                 <button class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm rounded-b-xl">Выйти</button>
@@ -147,11 +148,28 @@
           <div class="relative">
             <img src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-48 object-cover" />
 
-            <!-- БЕЙДЖИК -->
-            <span class="absolute bottom-2 right-2 px-2 py-0.5 text-xs font-medium rounded-full shadow-md
-      {{ 'bg-green-100 text-green-700' if image.is_verified else 'bg-red-100 text-red-700' }}">
-              {{ 'Проверено' if image.is_verified else 'Не проверено' }}
+            <!-- БЕЙДЖ СТАТУСА -->
+            {% if image.is_verified == 0 %}
+            <span
+              class="absolute bottom-2 right-2 px-2 py-0.5 text-xs font-medium rounded-full shadow-md bg-red-100 text-red-700">
+              Не проверено
             </span>
+            {% elif image.is_verified == 1 %}
+            <span
+              class="absolute bottom-2 right-2 px-2 py-0.5 text-xs font-medium rounded-full shadow-md bg-yellow-100 text-yellow-700">
+              Готово к разметке
+            </span>
+            {% elif image.is_verified == 2 %}
+            <span
+              class="absolute bottom-2 right-2 px-2 py-0.5 text-xs font-medium rounded-full shadow-md bg-green-100 text-green-700">
+              Проверено
+            </span>
+            {% else %}
+            <span
+              class="absolute bottom-2 right-2 px-2 py-0.5 text-xs font-medium rounded-full shadow-md bg-gray-100 text-gray-600">
+              Неизвестно
+            </span>
+            {% endif %}
           </div>
 
           <div class="p-4">
@@ -173,10 +191,10 @@
             </div>
           </div>
         </div>
-
       </a>
       {% endfor %}
     </div>
+
 
     {% if total_pages > 1 %}
     <div class="flex flex-wrap justify-center mt-8 gap-2 max-w-full">

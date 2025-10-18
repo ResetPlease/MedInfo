@@ -11,16 +11,36 @@
 
 <style>
   @keyframes fade {
-    from {opacity: 0; transform: translateY(-5px);}
-    to {opacity: 1; transform: translateY(0);}
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  .animate-fade { animation: fade 0.2s ease-out; }
+
+  .animate-fade {
+    animation: fade 0.2s ease-out;
+  }
 
   @keyframes slide {
-    from {opacity: 0; transform: translateY(-10px);}
-    to {opacity: 1; transform: translateY(0);}
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  .animate-slide { animation: slide 0.3s ease-out; }
+
+  .animate-slide {
+    animation: slide 0.3s ease-out;
+  }
 </style>
 
 <body class="bg-gray-100 font-sans">
@@ -32,19 +52,16 @@
         <!-- ЛОГО -->
         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
           <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
           </svg>
-          <a href="/" class="hover:text-yellow-300 transition">Wrinkles<span
-              class="hidden sm:inline-block"> DB</span></a>
+          <a href="/" class="hover:text-yellow-300 transition">Wrinkles<span class="hidden sm:inline-block">
+              DB</span></a>
         </h1>
 
         <!-- КНОПКА ГАМБУРГЕР -->
         <button class="sm:hidden p-2 rounded-lg hover:bg-white/20 transition" onclick="toggleMobileNav()">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-            viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 6h16M4 12h16M4 18h16" />
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
@@ -61,12 +78,10 @@
               class="text-sm bg-white/10 hover:bg-white/20 rounded px-2 py-1">Аккаунт</button>
             <div id="accountMenu"
               class="hidden absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg py-2 animate-fade">
-              <div
-                class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}
+              <div class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}
               </div>
               <form action="/logout" method="post">
-                <button
-                  class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm rounded-b-xl">Выйти</button>
+                <button class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm rounded-b-xl">Выйти</button>
               </form>
             </div>
           </div>
@@ -89,42 +104,66 @@
         </div>
       </div>
     </header>
-  
+
     <!-- КАРТИНКА (с canvas overlay для отображения линий) -->
-<div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-  <div class="relative mb-4">
-    <img id="mainImage" src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md" />
-    <canvas id="overlayCanvas"
-            class="absolute left-0 top-0 rounded-md"
-            style="pointer-events: none; width: 100%; height: 100%;"></canvas>
-  </div>
+    <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+      <div class="relative mb-4">
+        <img id="mainImage" src="{{ image.file_path }}" alt="{{ image.name }}" class="w-full h-auto rounded-md" />
+        <canvas id="overlayCanvas" class="absolute left-0 top-0 rounded-md"
+          style="pointer-events: none; width: 100%; height: 100%;"></canvas>
+      </div>
 
-  <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
-  <p class="text-gray-500 mb-2">ID: {{ image.id }}</p>
+      <h2 class="text-xl font-semibold text-gray-800 mb-2">Name: {{ image.name }}</h2>
+      <p class="text-gray-500 mb-2">ID: {{ image.id }}</p>
 
-  <div class="flex flex-wrap gap-2">
-    {% for tag in image.tags.split(',') %}
-    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{{ tag }}</span>
-    {% endfor %}
-  </div>
-  <div class="text-sm text-gray-500 mt-3 space-y-0.5">
-    <p>Автор: {{ image.author.username if image.author else 'admin' }}</p>
-    <p>Загружено: {{ image.uploaded_at if image.uploaded_at else '—' }}</p>
-    <p>Проверено: {{ 'да' if image.is_verified else 'нет' }}</p>
-  </div>
-</div>
+      <div class="flex flex-wrap gap-2">
+        {% for tag in image.tags.split(',') %}
+        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{{ tag }}</span>
+        {% endfor %}
+      </div>
+      <p>Статус проверки:
+        {% if image.is_verified == 0 %}
+        <span class="text-red-600 font-medium">Не пройдена первичная проверка</span>
+        {% elif image.is_verified == 1 %}
+        <span class="text-yellow-600 font-medium">Готово к разметке</span>
+        {% elif image.is_verified == 2 %}
+        <span class="text-green-600 font-medium">Тотальный slay</span>
+        {% else %}
+        <span class="text-gray-500">Неизвестный статус</span>
+        {% endif %}
+      </p>
+    </div>
 
 
     <!-- КНОПКИ Проверить/Удалить -->
     <div class="flex justify-center mt-6 space-x-4">
-      {% if request.state and request.state.current_user and request.state.current_user.role == 'master' and not image.is_verified %}
-      <form action="/image/{{ image.id }}/verify" method="post" onsubmit="return confirm('Отметить как проверенное?');">
+      {% if request.state and request.state.current_user and request.state.current_user.role == 'master' %}
+
+      {% if image.is_verified == 0 %}
+      <!-- 1. Первая проверка -->
+      <form action="/image/{{ image.id }}/verify?status=1" method="post"
+        onsubmit="return confirm('Отметить как прошедшее первичную проверку (готово к разметке)?');">
         <button
-          class="px-5 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-green-600 text-white hover:bg-green-700">
-          Проверить
+          class="px-5 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-yellow-500 text-white hover:bg-yellow-600">
+          Готово к разметке(1)
         </button>
       </form>
+
+      {% elif image.is_verified == 1 %}
+      <!-- 2. Завершение -->
+      <form action="/image/{{ image.id }}/verify?status=2" method="post"
+        onsubmit="return confirm('Отметить как полностью проверенное изображение?');">
+        <button
+          class="px-5 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-green-600 text-white hover:bg-green-700">
+          Проверить(2)
+        </button>
+      </form>
+
+      {% elif image.is_verified == 2 %}
       {% endif %}
+      {% endif %}
+
+      <!-- Кнопка Удалить -->
       <form action="/image/{{ image.id }}/delete" method="post"
         onsubmit="return confirm('Вы уверены, что хотите удалить это изображение?');">
         <button
@@ -132,13 +171,17 @@
           Удалить
         </button>
       </form>
+
+      <!-- Кнопка Разметить -->
+      {% if image.is_verified >= 1 %}
       <form action="/image_editor">
-        <input type="hidden" name="image_id" value="{{ image.id }}" /> 
+        <input type="hidden" name="image_id" value="{{ image.id }}" />
         <button
           class="px-5 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-pink-500 text-white hover:bg-pink-600">
           Разметить
         </button>
       </form>
+      {% endif %}
     </div>
 
     <div class="border-b border-gray-300 my-8"></div>
@@ -147,7 +190,7 @@
     <div class="flex justify-between mt-8">
       {% if prev_id %}
       <a href="/image/{{ prev_id }}"
-         class="px-6 py-3 rounded-lg bg-gray-200 text-gray-800 font-medium shadow hover:bg-gray-300 active:scale-95 transition w-full sm:w-auto text-center">
+        class="px-6 py-3 rounded-lg bg-gray-200 text-gray-800 font-medium shadow hover:bg-gray-300 active:scale-95 transition w-full sm:w-auto text-center">
         ← Назад
       </a>
       {% else %}
@@ -156,7 +199,7 @@
 
       {% if next_id %}
       <a href="/image/{{ next_id }}"
-         class="px-6 py-3 rounded-lg bg-gray-200 text-gray-800 font-medium shadow hover:bg-gray-300 active:scale-95 transition w-full sm:w-auto text-center">
+        class="px-6 py-3 rounded-lg bg-gray-200 text-gray-800 font-medium shadow hover:bg-gray-300 active:scale-95 transition w-full sm:w-auto text-center">
         Вперёд →
       </a>
       {% endif %}
@@ -179,12 +222,12 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {% for tag in tags %}
             <label class="inline-flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" name="tags" value="{{ tag }}"
-                class="peer hidden" {% if tag in image.tags.split(',') %}checked{% endif %}>
+              <input type="checkbox" name="tags" value="{{ tag }}" class="peer hidden" {% if tag in
+                image.tags.split(',') %}checked{% endif %}>
               <span
                 class="w-5 h-5 flex items-center justify-center rounded-md border border-gray-400 peer-checked:bg-blue-500 peer-checked:border-blue-500 transition">
-                <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="none" stroke="currentColor" stroke-width="3"
-                  viewBox="0 0 24 24">
+                <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="none" stroke="currentColor"
+                  stroke-width="3" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </span>
@@ -221,104 +264,104 @@
     });
   </script>
   <script>
-  (function () {
-    const imageId = "{{ image.id }}";
-    const imgEl = document.getElementById('mainImage');
-    const canvas = document.getElementById('overlayCanvas');
-    const ctx = canvas.getContext('2d');
+    (function () {
+      const imageId = "{{ image.id }}";
+      const imgEl = document.getElementById('mainImage');
+      const canvas = document.getElementById('overlayCanvas');
+      const ctx = canvas.getContext('2d');
 
-    let marks = {}; // загрузится с сервера: { tag: [ [ {x,y}, ... ], ... ], ... }
-    function resizeOverlay() {
-      const rect = imgEl.getBoundingClientRect();
-      // canvas.width/height — в пикселях; синхронизируем с отображаемым (CSS) размером
-      const w = Math.max(1, Math.round(rect.width));
-      const h = Math.max(1, Math.round(rect.height));
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
+      let marks = {}; // загрузится с сервера: { tag: [ [ {x,y}, ... ], ... ], ... }
+      function resizeOverlay() {
+        const rect = imgEl.getBoundingClientRect();
+        // canvas.width/height — в пикселях; синхронизируем с отображаемым (CSS) размером
+        const w = Math.max(1, Math.round(rect.width));
+        const h = Math.max(1, Math.round(rect.height));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          canvas.style.width = rect.width + 'px';
+          canvas.style.height = rect.height + 'px';
+        }
+        drawMarks();
       }
-      drawMarks();
-    }
 
-    // если координата <=1 — считаем нормализованной; иначе — абсолютной (px)
-    function normalizePoint(p) {
-      const xn = (typeof p.x === 'number' && p.x <= 1) ? p.x : (p.x / (imgEl.naturalWidth || canvas.width));
-      const yn = (typeof p.y === 'number' && p.y <= 1) ? p.y : (p.y / (imgEl.naturalHeight || canvas.height));
-      return { x: Math.max(0, Math.min(1, xn)), y: Math.max(0, Math.min(1, yn)) };
-    }
+      // если координата <=1 — считаем нормализованной; иначе — абсолютной (px)
+      function normalizePoint(p) {
+        const xn = (typeof p.x === 'number' && p.x <= 1) ? p.x : (p.x / (imgEl.naturalWidth || canvas.width));
+        const yn = (typeof p.y === 'number' && p.y <= 1) ? p.y : (p.y / (imgEl.naturalHeight || canvas.height));
+        return { x: Math.max(0, Math.min(1, xn)), y: Math.max(0, Math.min(1, yn)) };
+      }
 
-    function drawMarks() {
-      if (!canvas.width || !canvas.height) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      function drawMarks() {
+        if (!canvas.width || !canvas.height) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const strokeColor = 'rgba(16,185,129,0.95)'; // tailwind green-500
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
+        const strokeColor = 'rgba(16,185,129,0.95)'; // tailwind green-500
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
 
-  
-      const lw = Math.max(2, Math.round(Math.min(canvas.width, canvas.height) * 0.012));
-      ctx.lineWidth = lw;
-      ctx.strokeStyle = strokeColor;
 
-      for (const tag in marks) {
-        const lines = marks[tag];
-        if (!Array.isArray(lines)) continue;
-        lines.forEach(line => {
-          if (!Array.isArray(line) || line.length === 0) return;
-          ctx.beginPath();
-          line.forEach((pt, i) => {
-            const n = normalizePoint(pt);
-            const px = n.x * canvas.width;
-            const py = n.y * canvas.height;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
+        const lw = Math.max(2, Math.round(Math.min(canvas.width, canvas.height) * 0.012));
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = strokeColor;
+
+        for (const tag in marks) {
+          const lines = marks[tag];
+          if (!Array.isArray(lines)) continue;
+          lines.forEach(line => {
+            if (!Array.isArray(line) || line.length === 0) return;
+            ctx.beginPath();
+            line.forEach((pt, i) => {
+              const n = normalizePoint(pt);
+              const px = n.x * canvas.width;
+              const py = n.y * canvas.height;
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
           });
-          ctx.stroke();
-        });
+        }
       }
-    }
 
-    async function loadAndDraw() {
-      try {
-        const res = await fetch(`/segmentations/${imageId}`);
-        if (!res.ok) return; // ничего не рисуем, если нет данных
-        marks = await res.json();
+      async function loadAndDraw() {
+        try {
+          const res = await fetch(`/segmentations/${imageId}`);
+          if (!res.ok) return; // ничего не рисуем, если нет данных
+          marks = await res.json();
+          resizeOverlay();
+        } catch (err) {
+          console.warn('Не удалось загрузить сегментации:', err);
+        }
+      }
+
+
+      imgEl.addEventListener('load', () => {
+
         resizeOverlay();
-      } catch (err) {
-        console.warn('Не удалось загрузить сегментации:', err);
+        loadAndDraw();
+      });
+
+      if (imgEl.complete && imgEl.naturalWidth) {
+        resizeOverlay();
+        loadAndDraw();
       }
-    }
-
-    
-    imgEl.addEventListener('load', () => {
-    
-      resizeOverlay();
-      loadAndDraw();
-    });
-    
-    if (imgEl.complete && imgEl.naturalWidth) {
-      resizeOverlay();
-      loadAndDraw();
-    }
 
 
-    window.addEventListener('resize', () => {
+      window.addEventListener('resize', () => {
 
-      clearTimeout(window.__overlayResizeTimeout);
-      window.__overlayResizeTimeout = setTimeout(resizeOverlay, 80);
-    });
+        clearTimeout(window.__overlayResizeTimeout);
+        window.__overlayResizeTimeout = setTimeout(resizeOverlay, 80);
+      });
 
-    try {
-      const wrapper = imgEl.parentElement;
-      if (window.ResizeObserver && wrapper) {
-        const ro = new ResizeObserver(() => resizeOverlay());
-        ro.observe(wrapper);
-      }
-    } catch (e) { /* ignore */ }
-  })();
-</script>
+      try {
+        const wrapper = imgEl.parentElement;
+        if (window.ResizeObserver && wrapper) {
+          const ro = new ResizeObserver(() => resizeOverlay());
+          ro.observe(wrapper);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
 
 </body>
 

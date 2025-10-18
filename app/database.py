@@ -38,29 +38,57 @@ def _get_existing_columns(table_name: str) -> Set[str]:
 
 
 def _migrate_schema_sqlite():
-    # Добавление новых колонок в images при необходимости
     try:
         cols = _get_existing_columns("images")
+
         alter_statements = []
+
         if "author_id" not in cols:
             alter_statements.append("ALTER TABLE images ADD COLUMN author_id INTEGER")
         if "uploaded_at" not in cols:
             alter_statements.append("ALTER TABLE images ADD COLUMN uploaded_at DATETIME")
-        if "is_verified" not in cols:
-            alter_statements.append("ALTER TABLE images ADD COLUMN is_verified BOOLEAN DEFAULT 0")
 
-        if alter_statements:
-            with engine.begin() as conn:
-                for stmt in alter_statements:
-                    conn.exec_driver_sql(stmt)
+        # обработка is_verified
+        with engine.begin() as conn:
+            if "is_verified" not in cols:
+                # если поля нет — просто добавляем как INTEGER
+                conn.exec_driver_sql("ALTER TABLE images ADD COLUMN is_verified INTEGER DEFAULT 0")
+            else:
+                # проверяем тип колонки
+                result = conn.exec_driver_sql("PRAGMA table_info(images)")
+                col_types = {row[1]: row[2].upper() for row in result.fetchall()}
+                if col_types.get("is_verified") in ("BOOLEAN", "BOOL"):
+                    # создаем новую временную таблицу с нужным типом
+                    conn.exec_driver_sql("""
+                        ALTER TABLE images RENAME TO images_old;
+                    """)
+                    conn.exec_driver_sql("""
+                        CREATE TABLE images (
+                            id INTEGER PRIMARY KEY,
+                            name TEXT,
+                            file_path TEXT,
+                            tags TEXT,
+                            author_id INTEGER,
+                            uploaded_at DATETIME,
+                            is_verified INTEGER DEFAULT 0
+                        );
+                    """)
+                    # переносим данные
+                    conn.exec_driver_sql("""
+                        INSERT INTO images (id, name, file_path, tags, author_id, uploaded_at, is_verified)
+                        SELECT id, name, file_path, tags, author_id, uploaded_at,
+                               CASE WHEN is_verified THEN 1 ELSE 0 END
+                        FROM images_old;
+                    """)
+                    conn.exec_driver_sql("DROP TABLE images_old;")
 
-        # Бэкфилл нормализованных тегов для существующих записей
+        # Бэкфилл и нормализация, как раньше
         from sqlalchemy.orm import Session
         from .models import Image, Tag, ImageTag, User
 
         with Session(bind=engine) as session:
             images = session.query(Image).all()
-            # Собираем набор всех тегов
+
             unique_tags = set()
             for img in images:
                 if img.tags:
@@ -77,7 +105,6 @@ def _migrate_schema_sqlite():
                         session.add(Tag(name=name))
                 session.flush()
 
-            # Обеспечиваем связи image_tags
             name_to_tag = {t.name: t for t in session.query(Tag).all()}
             for img in images:
                 if not img.tags:
@@ -87,14 +114,13 @@ def _migrate_schema_sqlite():
                 for tag_id in wanted - current:
                     session.add(ImageTag(image_id=img.id, tag_id=tag_id))
 
-            # Бэкфилл автора: все старые фото без автора -> admin
             admin = session.query(User).filter(User.username == "admin").first()
             if admin:
                 session.query(Image).filter(Image.author_id.is_(None)).update({Image.author_id: admin.id})
             session.commit()
-    except Exception:
-        # Не блокируем запуск приложения из-за миграций
-        pass
+
+    except Exception as e:
+        print("Migration failed:", e)
 
 
 def _ensure_default_master_user():

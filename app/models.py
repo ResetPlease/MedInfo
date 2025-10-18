@@ -45,7 +45,7 @@ class Image(Base):
     # New fields
     author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=True)
-    is_verified = Column(Boolean, default=False, nullable=True)
+    is_verified = Column(Integer, default=0, nullable=True)
 
     author = relationship("User", back_populates="images")
     tag_links = relationship("ImageTag", back_populates="image", cascade="all, delete-orphan")
