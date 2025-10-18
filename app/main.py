@@ -687,22 +687,27 @@ async def create_backup(
         headers={"Content-Disposition": f"attachment; filename={backup_filename}"},
     )
 
-
 # Маркировка изображения как проверенного (только master)
 @app.post("/image/{image_id}/verify", response_class=RedirectResponse)
 async def verify_image(
     image_id: int,
+    status: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role != "master":
         raise HTTPException(status_code=403, detail="Недостаточно прав")
 
+    # not ver, ready to mark, full ver
+    verified_statuses = [0,1,2]
+    if status not in verified_statuses:
+        raise HTTPException(status_code=404, detail="Неверный тип подтверждения")
+
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Изображение не найдено")
 
-    image.is_verified = True
+    image.is_verified = status
     db.commit()
     return RedirectResponse(url=f"/image/{image.id}", status_code=303)
 
