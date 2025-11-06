@@ -1,16 +1,10 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    DateTime,
-    Boolean,
-    ForeignKey,
-    UniqueConstraint,
-    JSON
-)
-from sqlalchemy.orm import relationship
-from .database import Base
 from datetime import datetime
+
+from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer,
+                        String, UniqueConstraint)
+from sqlalchemy.orm import relationship
+
+from app.database import Base
 
 
 class User(Base):
@@ -18,7 +12,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="slave")  # 'master' | 'slave'
+    # 'master' | 'slave'
+    role = Column(String, nullable=False, default="slave")
 
     images = relationship("Image", back_populates="author")
 
@@ -32,6 +27,7 @@ class Segmentation(Base):
     data = Column(JSON, nullable=True)  # полигоны [{points: [[x,y],...]}]
 
     image = relationship("Image", back_populates="segmentations")
+
 
 class Image(Base):
     __tablename__ = "images"
@@ -48,8 +44,10 @@ class Image(Base):
     is_verified = Column(Integer, default=0, nullable=True)
 
     author = relationship("User", back_populates="images")
-    tag_links = relationship("ImageTag", back_populates="image", cascade="all, delete-orphan")
-    segmentations = relationship("Segmentation", back_populates="image", cascade="all, delete-orphan")
+    tag_links = relationship(
+        "ImageTag", back_populates="image", cascade="all, delete-orphan")
+    segmentations = relationship(
+        "Segmentation", back_populates="image", cascade="all, delete-orphan")
 
 
 class Tag(Base):
@@ -57,7 +55,8 @@ class Tag(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
 
-    image_links = relationship("ImageTag", back_populates="tag", cascade="all, delete-orphan")
+    image_links = relationship(
+        "ImageTag", back_populates="tag", cascade="all, delete-orphan")
 
 
 class ImageTag(Base):

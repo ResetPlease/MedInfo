@@ -123,13 +123,13 @@
       </div>
       <p>Статус проверки:
         {% if image.is_verified == 0 %}
-        <span class="text-red-600 font-medium">Не пройдена первичная проверка</span>
+        <span class="text-red-600 font-medium"> не пройдена первичная проверка</span>
         {% elif image.is_verified == 1 %}
-        <span class="text-yellow-600 font-medium">Готово к разметке</span>
+        <span class="text-yellow-600 font-medium"> готово к разметке</span>
         {% elif image.is_verified == 2 %}
-        <span class="text-green-600 font-medium">Тотальный slay</span>
+        <span class="text-green-600 font-medium"> тотальный slay</span>
         {% else %}
-        <span class="text-gray-500">Неизвестный статус</span>
+        <span class="text-gray-500"> неизвестный статус</span>
         {% endif %}
       </p>
     </div>
@@ -296,7 +296,7 @@
         if (!canvas.width || !canvas.height) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const strokeColor = 'rgba(16,185,129,0.95)'; // tailwind green-500
+        const strokeColor = 'rgba(16,185,129,0.65)'; // tailwind green-500
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
 
