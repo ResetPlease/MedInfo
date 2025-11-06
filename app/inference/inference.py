@@ -1,11 +1,11 @@
 import torch
-from torchvision import models, transforms
-from sklearn.preprocessing import MultiLabelBinarizer
-from PIL import Image
 from facenet_pytorch import MTCNN
+from PIL import Image
+from sklearn.preprocessing import MultiLabelBinarizer
+from torchvision import models, transforms
 
 # === Настройки ===
-MODEL_PATH = "app/best_wrinkle_model.pth"
+MODEL_PATH = "app/inference/best_wrinkle_model.pth"
 THRESHOLD = 0.5
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -13,6 +13,7 @@ device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 checkpoint = torch.load(MODEL_PATH, map_location=device)
 mlb_classes = checkpoint['mlb_classes']
 NUM_CLASSES = len(mlb_classes)
+
 
 class MultiLabelResNet(torch.nn.Module):
     def __init__(self, num_classes):
@@ -23,6 +24,7 @@ class MultiLabelResNet(torch.nn.Module):
 
     def forward(self, x):
         return self.backbone(x)
+
 
 # создаём модель через обёртку
 model = MultiLabelResNet(NUM_CLASSES)
@@ -44,6 +46,7 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
 ])
+
 
 def predict_wrinkles(image_path: str):
     """
@@ -84,4 +87,3 @@ if __name__ == "__main__":
     image_path = "images/your_photo.jpg"
     labels = predict_wrinkles(image_path)
     print("Predicted wrinkles:", labels)
-
