@@ -2,177 +2,332 @@
 <html lang="ru">
 
 <head>
-    <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Статистика — Wrinkles</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Статистика — Wrinkles</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 
 <style>
-    @keyframes fade {
-      from {opacity: 0; transform: translateY(-5px);}
-      to {opacity: 1; transform: translateY(0);}
+  .card-gradient {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(147, 51, 234, 0.1));
+  }
+
+  canvas {
+    max-width: 100%;
+  }
+
+  .card-gradient:nth-child(odd) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(147, 51, 234, 0.08));
+  }
+
+  .card-gradient:nth-child(even) {
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.05), rgba(99, 102, 241, 0.08));
+  }
+
+  .stat-card {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .stat-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
     }
-    .animate-fade { animation: fade 0.2s ease-out; }
-  
-    @keyframes slide {
-      from {opacity: 0; transform: translateY(-10px);}
-      to {opacity: 1; transform: translateY(0);}
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
-    .animate-slide { animation: slide 0.3s ease-out; }
-  </style>
+  }
+
+  .animate-fade {
+    animation: fade 0.2s ease-out;
+  }
+
+  @keyframes slide {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide {
+    animation: slide 0.3s ease-out;
+  }
+</style>
 
 <body class="bg-gray-100 font-sans">
-    <div class="container mx-auto max-w-screen-lg p-6">
-        <!-- HEADER -->
+  <div class="container mx-auto max-w-screen-lg p-6">
+    <!-- HEADER -->
     <header class="mb-8">
-        <div
-          class="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-4 sm:px-6 py-4 text-white">
-          <!-- ЛОГО -->
-          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
-            </svg>
-            <a href="/" class="hover:text-yellow-300 transition">Wrinkles<span
-                class="hidden sm:inline-block"> DB</span></a>
-          </h1>
-  
-          <!-- КНОПКА ГАМБУРГЕР -->
-          <button class="sm:hidden p-2 rounded-lg hover:bg-white/20 transition" onclick="toggleMobileNav()">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-              viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-  
-          <!-- ДЕСКТОП МЕНЮ -->
-          <nav id="desktopNav" class="hidden sm:flex items-center gap-6 text-lg font-medium">
-            <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
-            <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
-            <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
-            <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
-  
-            <!-- АККАУНТ -->
-            <div class="relative">
-              <button onclick="toggleMenu()"
-                class="text-sm bg-white/10 hover:bg-white/20 rounded px-2 py-1">Аккаунт</button>
-              <div id="accountMenu"
-                class="hidden absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg py-2 animate-fade">
-                <div
-                  class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}
-                </div>
-                <form action="/logout" method="post">
-                  <button
-                    class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm rounded-b-xl">Выйти</button>
-                </form>
+      <div
+        class="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg px-4 sm:px-6 py-4 text-white">
+        <!-- ЛОГО -->
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
+          </svg>
+          <a href="/" class="hover:text-yellow-300 transition">Wrinkles<span class="hidden sm:inline-block">
+              DB</span></a>
+        </h1>
+
+        <!-- КНОПКА ГАМБУРГЕР -->
+        <button class="sm:hidden p-2 rounded-lg hover:bg-white/20 transition" onclick="toggleMobileNav()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <!-- ДЕСКТОП МЕНЮ -->
+        <nav id="desktopNav" class="hidden sm:flex items-center gap-6 text-lg font-medium">
+          <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
+          {% if at_least_worker(request.state.current_user) %}
+          <a href="/upload" class="hover:underline">Загрузить</a>
+          {% endif %}
+          <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
+          <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
+
+          <!-- АККАУНТ -->
+          <div class="relative">
+            <button onclick="toggleMenu()"
+              class="text-sm bg-white/10 hover:bg-white/20 rounded px-2 py-1">Аккаунт</button>
+            <div id="accountMenu"
+              class="hidden absolute right-0 mt-2 w-44 bg-white text-gray-800 rounded-xl shadow-lg py-2 animate-fade">
+              <div class="px-3 py-2 text-sm text-gray-600 truncate border-b">{{ request.state.current_user.username }}
               </div>
+              <form action="/logout" method="post">
+                <button class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm rounded-b-xl">Выйти</button>
+              </form>
             </div>
-          </nav>
+          </div>
+        </nav>
+      </div>
+
+      <!-- МОБИЛЬНОЕ МЕНЮ -->
+      <div id="mobileMenu"
+        class="sm:hidden hidden bg-gradient-to-r from-blue-600 to-purple-600 rounded-b-xl px-4 py-3 text-white animate-slide">
+        <div class="flex flex-col gap-3">
+          <a href="/" class="hover:underline">Главная</a>
+          <a href="/upload" class="hover:underline">Загрузить</a>
+          <a href="/predict" class="hover:underline">Magic</a>
+          <a href="/stats" class="hover:underline">Info</a>
+          <form action="/logout" method="post" class="mt-1">
+            <button class="text-sm bg-white/20 hover:bg-white/30 rounded px-2 py-1 w-max">
+              Выйти ({{ request.state.current_user.username }})
+            </button>
+          </form>
         </div>
-  
-        <!-- МОБИЛЬНОЕ МЕНЮ -->
-        <div id="mobileMenu"
-          class="sm:hidden hidden bg-gradient-to-r from-blue-600 to-purple-600 rounded-b-xl px-4 py-3 text-white animate-slide">
-          <div class="flex flex-col gap-3">
-            <a href="/" class="hover:underline">Главная</a>
-            <a href="/upload" class="hover:underline">Загрузить</a>
-            <a href="/predict" class="hover:underline">Magic</a>
-            <a href="/stats" class="hover:underline">Info</a>
-            <form action="/logout" method="post" class="mt-1">
-              <button class="text-sm bg-white/20 hover:bg-white/30 rounded px-2 py-1 w-max">
-                Выйти ({{ request.state.current_user.username }})
-              </button>
-            </form>
+      </div>
+    </header>
+
+    <!-- STAT -->
+    <div class="space-y-8">
+      <!-- Заголовок -->
+      <div class="text-center">
+        <h2
+          class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
+          Статистика
+        </h2>
+        <p class="text-gray-600 text-sm">Всего изображений: <span class="font-semibold text-blue-700">{{ total_images
+            }}</span></p>
+      </div>
+
+      <!-- Сетка карточек -->
+      <div class="space-y-8">
+        <!-- Карточка -->
+        <div class="stat-card bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-6 flex flex-col card-gradient">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Распределение тегов</h3>
+          <div class="h-[300px] sm:h-[380px] md:h-[420px] lg:h-[460px]">
+            <canvas id="tagsChart"></canvas>
           </div>
         </div>
-      </header>
 
-        <div class="bg-white p-2 rounded-xl shadow-lg">
-            <h2>Всего изображений: {{total_images}}</h2>
+        <!-- Карточка -->
+        <div class="stat-card bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-6 flex flex-col card-gradient">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Распределение тегов (%)</h3>
+          <div class="flex justify-center">
+            <div class="w-[240px] h-[240px] md:w-[300px] md:h-[300px] lg:w-[360px] lg:h-[360px]">
+              <canvas id="tagsPieChart"></canvas>
+            </div>
+          </div>
         </div>
-        <hr>
-        <div class="bg-white p-6 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-semibold mb-4">Распределение тегов</h2>
-            <canvas id="tagsChart" height="120"></canvas>
+
+        <!-- Карточка -->
+        <div class="stat-card bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-6 flex flex-col card-gradient">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Топ сочетаний тегов</h3>
+          <div class="h-[300px] sm:h-[380px] md:h-[420px] lg:h-[460px]">
+            <canvas id="tagCombosChart"></canvas>
+          </div>
         </div>
-        <hr>
-        <div class="bg-white p-6 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-semibold mb-4">Распределение тегов (в %)</h2>
-            <canvas id="tagsPieChart" height="120"></canvas>
-        </div>
-        <hr>
-        <div class="bg-white p-6 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-semibold mb-4">Топ сочетаний тегов</h2>
-            <canvas id="tagCombosChart" height="120"></canvas>
-        </div>
+      </div>
     </div>
 
+  </div>
 
-    <script>
-        async function loadTagStats() {
-            const resp = await fetch('/api/stats/tags');
-            const data = await resp.json();
-            new Chart(document.getElementById('tagsChart'), {
-                type: 'bar',
-                data: {
-                    labels: data.tags,
-                    datasets: [{
-                        label: 'Количество',
-                        data: data.counts,
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: { responsive: true, plugins: { legend: { display: false } } }
-            });
+
+  </div>
+
+
+  <script>
+    const textColor = '#4b5563';
+
+    async function loadTagStats() {
+      const resp = await fetch('/api/stats/tags');
+      const data = await resp.json();
+
+      const avg = data.counts.reduce((a, b) => a + b, 0) / data.counts.length;
+
+      const averageLine = {
+        id: 'averageLine',
+        afterDraw: (chart) => {
+          const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+          const yPos = y.getPixelForValue(avg);
+
+          // Линия
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(left, yPos);
+          ctx.lineTo(right, yPos);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(255, 99, 132, 0.8)';
+          ctx.setLineDash([6, 6]);
+          ctx.stroke();
+          ctx.restore();
+
+          // Подпись
+          ctx.font = '12px sans-serif';
+          ctx.fillStyle = 'rgba(255, 99, 132, 0.9)';
+          ctx.textAlign = 'right';
+          ctx.fillText(`Среднее: ${avg.toFixed(1)}`, right - 4, yPos - 6);
         }
+      };
 
-        async function loadTagPercentPie() {
-            const resp = await fetch('/api/stats/tags-percent');
-            const data = await resp.json();
-            new Chart(document.getElementById('tagsPieChart'), {
-                type: 'pie',
-                data: {
-                    labels: data.tags,
-                    datasets: [{
-                        data: data.percentages,
-                        backgroundColor: data.tags.map((_, i) => `hsl(${i * 35 % 360}, 70%, 60%)`)
-                    }]
-                },
-                options: { responsive: true }
-            });
+      new Chart(document.getElementById('tagsChart'), {
+        type: 'bar',
+        data: {
+          labels: data.tags,
+          datasets: [{
+            label: 'Количество',
+            data: data.counts,
+            backgroundColor: 'rgba(99,102,241,0.7)',
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterBody: () => `Среднее: ${avg.toFixed(1)}`
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: textColor, font: { size: 11 } } },
+            y: { ticks: { color: textColor, font: { size: 11 } } }
+          },
+          layout: { padding: { top: 10, bottom: 10, left: 10, right: 10 } }
+        },
+        plugins: [averageLine]
+      });
+    }
+
+    async function loadTagPercentPie() {
+      const resp = await fetch('/api/stats/tags-percent');
+      const data = await resp.json();
+      new Chart(document.getElementById('tagsPieChart'), {
+        type: 'doughnut',
+        data: {
+          labels: data.tags,
+          datasets: [{
+            data: data.percentages,
+            backgroundColor: data.tags.map((_, i) => `hsl(${i * 35 % 360}, 75%, 65%)`)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '55%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, font: { size: 12 } }
+            }
+          }
         }
+      });
+    }
 
-        async function loadTagCombos() {
-            const resp = await fetch('/api/stats/tag-combos');
-            const data = await resp.json();
-            new Chart(document.getElementById('tagCombosChart'), {
-                type: 'bar',
-                data: {
-                    labels: data.combos,
-                    datasets: [{
-                        label: 'Частота',
-                        data: data.counts,
-                        backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: { responsive: true, indexAxis: 'y' }
-            });
+    async function loadTagCombos() {
+      const resp = await fetch('/api/stats/tag-combos');
+      const data = await resp.json();
+      new Chart(document.getElementById('tagCombosChart'), {
+        type: 'bar',
+        data: {
+          labels: data.combos,
+          datasets: [{
+            label: 'Частота',
+            data: data.counts,
+            backgroundColor: 'rgba(147,51,234,0.7)',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: textColor, font: { size: 11 } } },
+            y: { ticks: { color: textColor, font: { size: 11 } } }
+          },
+          layout: { padding: { top: 10, bottom: 10, left: 10, right: 10 } }
         }
+      });
+    }
 
-        loadTagStats();
-        loadTagPercentPie();
-        loadTagCombos();
-    </script>
-<script>
+    const cards = document.querySelectorAll('.stat-card');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2 }
+    );
+    cards.forEach(card => observer.observe(card));
+
+
+    loadTagStats();
+    loadTagPercentPie();
+    loadTagCombos();
+
+  </script>
+
+
+  <script>
     function toggleMobileNav() {
       const m = document.getElementById('mobileMenu');
       if (m) m.classList.toggle('hidden');

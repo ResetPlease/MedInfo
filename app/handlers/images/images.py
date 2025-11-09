@@ -11,8 +11,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Image, ImageTag, Tag, User
-from app.security import get_current_user
+from app.models import Image, ImageTag, Tag, User, Role, isModelAdmin, at_least_worker
+from app.security import get_current_user, MinRoleRequired
 
 router = APIRouter()
 
@@ -24,7 +24,7 @@ async def image_editor(
     request: Request,
     image_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.WORKER)),
 ):
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
@@ -60,7 +60,9 @@ async def image_detail(
     return templates.TemplateResponse(
         "image_detail.html",
         {"request": request, "image": image, "tags": tag_names,
-            "prev_id": prev_image.id, "next_id": next_image.id},
+            "prev_id": prev_image.id, "next_id": next_image.id,
+            "isModelAdmin": isModelAdmin,
+            "at_least_worker":at_least_worker},
     )
 
 
@@ -68,7 +70,7 @@ async def image_detail(
 async def delete_image(
     image_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
@@ -91,7 +93,7 @@ async def update_image(
     name: str = Form(...),
     tags: List[str] = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.WORKER)),
 ):
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
@@ -119,11 +121,8 @@ async def verify_image(
     image_id: int,
     status: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
-    if cast(str, current_user.role) != "master":
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
-
     # not ver, ready to mark, full ver
     verified_statuses = [0, 1, 2]
     if status not in verified_statuses:
@@ -145,7 +144,7 @@ async def upload_image(
     name: str = Form(...),
     tags: List[str] = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.WORKER)),
 ):
 
     # tags checking

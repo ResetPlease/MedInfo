@@ -7,11 +7,10 @@ from fastapi.responses import (
 
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends, Request, Query, APIRouter
-from app.models import User, Image
+from app.models import User, Image, isModelAdmin, at_least_worker
 from app.security import get_current_user
 from app.database import get_db
 from typing import List
-from typing import cast
 
 import re
 
@@ -77,15 +76,20 @@ def apply_search_filters(images: List, search_params: dict):
     # --- фильтр по Count ---
     for op, val in search_params["count_filters"]:
         if op == "=":
-            results = [img for img in results if len(img.tags.split(",")) == val]
+            results = [img for img in results if len(
+                img.tags.split(",")) == val]
         elif op == ">":
-            results = [img for img in results if len(img.tags.split(",")) > val]
+            results = [img for img in results if len(
+                img.tags.split(",")) > val]
         elif op == "<":
-            results = [img for img in results if len(img.tags.split(",")) < val]
+            results = [img for img in results if len(
+                img.tags.split(",")) < val]
         elif op == ">=":
-            results = [img for img in results if len(img.tags.split(",")) >= val]
+            results = [img for img in results if len(
+                img.tags.split(",")) >= val]
         elif op == "<=":
-            results = [img for img in results if len(img.tags.split(",")) <= val]
+            results = [img for img in results if len(
+                img.tags.split(",")) <= val]
 
     # --- фильтр по тегам ---
     for tag in search_params["tags"]:
@@ -126,7 +130,7 @@ async def search_images(
     else:
         filtered_images = all_images
 
-    if unverified and cast(str, current_user.role) == "master":
+    if unverified and isModelAdmin(current_user):
         filtered_images = [
             img for img in filtered_images if not getattr(img, "is_verified", False)
         ]
@@ -147,6 +151,8 @@ async def search_images(
             "search": search,
             "page": page,
             "total_pages": total_pages,
-            "unverified": bool(unverified and current_user.role == "master"),
+            "at_least_worker": at_least_worker,
+            "isModelAdmin" : isModelAdmin,
+            "unverified": bool(unverified and isModelAdmin(current_user)),
         },
     )

@@ -117,7 +117,7 @@
           class="w-full max-h-64 object-contain rounded-lg shadow-lg transition-all duration-300" />
       </div>
 
-      {% if request.state.current_user.role == "master" %}
+      {% if isModelAdmin(request.state.current_user) %}
       <div class="flex justify-center tooltip-container relative">
         <button type="button" id="predictBtn"
           class="hidden mt-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md hover:shadow-xl transition-all">

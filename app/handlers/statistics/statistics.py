@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Image, User
+from app.models import Image, User, at_least_worker
 from app.security import get_current_user
 
 templates = Jinja2Templates(directory="app/templates")
@@ -73,5 +73,6 @@ async def stats_page(
 ):
     total = db.query(func.count(Image.id)).scalar()
     return templates.TemplateResponse(
-        "stats.html", {"request": request, "total_images": total}
+        "stats.html", {"request": request, "total_images": total,
+                       "at_least_worker": at_least_worker}
     )
