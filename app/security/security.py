@@ -8,12 +8,13 @@ from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User
+from app.models import User, Role
 
 # Лучше вынести в env / настройки
 SECRET_KEY = "super_public_secret"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -56,7 +57,8 @@ def get_current_user(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if not username:
-            raise HTTPException(status_code=303, headers={"Location": "/login"})
+            raise HTTPException(status_code=303, headers={
+                                "Location": "/login"})
     except JWTError:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
 
@@ -66,4 +68,3 @@ def get_current_user(
 
     request.state.current_user = user
     return user
-

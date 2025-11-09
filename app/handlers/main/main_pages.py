@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.inference import predict_wrinkles
-from app.models import Image, Tag, User
-from app.security import get_current_user
+from app.models import Image, Tag, User, isModelAdmin, Role, at_least_worker
+from app.security import get_current_user, MinRoleRequired
 
 UPLOAD_DIR = "app/uploads/predict"
 
@@ -29,7 +29,7 @@ async def read_root(
     unverified: bool = Query(False),
 ):
     query = db.query(Image)
-    if unverified and cast(str,current_user.role) == "master":
+    if unverified and isModelAdmin(current_user):
         query = query.filter((Image.is_verified == False)
                              | (Image.is_verified.is_(None)))
     total = query.with_entities(func.count(Image.id)).scalar()
@@ -43,7 +43,9 @@ async def read_root(
             "search": "",
             "page": page,
             "total_pages": total_pages,
-            "unverified": bool(unverified and current_user.role == "master"),
+            "isModelAdmin": isModelAdmin,
+            "at_least_worker": at_least_worker,
+            "unverified": bool(unverified and isModelAdmin(current_user)),
         },
     )
 
@@ -51,11 +53,11 @@ async def read_root(
 # Страница загрузки
 @router.get("/upload", response_class=HTMLResponse)
 async def upload_page(
-    request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    request: Request, current_user: User = Depends(MinRoleRequired(Role.WORKER)), db: Session = Depends(get_db)
 ):
     tag_names = [t.name for t in db.query(Tag).order_by(Tag.name.asc()).all()]
     return templates.TemplateResponse(
-        "upload.html", {"request": request, "tags": tag_names}
+        "upload.html", {"request": request, "tags": tag_names, "isModelAdmin" : isModelAdmin}
     )
 
 
@@ -66,7 +68,7 @@ async def predict(
 ):
     if not os.path.exists(UPLOAD_DIR):
         os.mkdir(UPLOAD_DIR)
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    file_path = os.path.join(UPLOAD_DIR, cast(str,file.filename))
     with open(file_path, "wb") as f:
         copyfileobj(file.file, f)
 
@@ -81,5 +83,6 @@ async def predict_template(
 ):
     return templates.TemplateResponse(
         "predict.html",
-        {"request": request},
+        {"request": request,
+         "at_least_worker": at_least_worker},
     )

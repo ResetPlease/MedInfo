@@ -19,6 +19,8 @@ import os
 
 router = APIRouter()
 
+# TODO обновить backup с добавлением сегментов
+
 # Создание и скачивание бэкапа
 @router.get("/backup")
 async def create_backup(

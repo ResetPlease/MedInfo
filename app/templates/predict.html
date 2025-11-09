@@ -161,7 +161,9 @@
         <!-- ДЕСКТОП МЕНЮ -->
         <nav id="desktopNav" class="hidden sm:flex items-center gap-6 text-lg font-medium">
           <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
+          {% if at_least_worker(request.state.current_user) %}
           <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
+          {% endif %}
           <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
           <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
 
@@ -188,7 +190,9 @@
         class="sm:hidden hidden bg-gradient-to-r from-blue-600 to-purple-600 rounded-b-xl px-4 py-3 text-white animate-slide">
         <div class="flex flex-col gap-3">
           <a href="/" class="hover:underline">Главная</a>
+          {% if at_least_worker(request.state.current_user) %}
           <a href="/upload" class="hover:underline">Загрузить</a>
+          {% endif %}
           <a href="/predict" class="hover:underline">Magic</a>
           <a href="/stats" class="hover:underline">Info</a>
           <form action="/logout" method="post" class="mt-1">

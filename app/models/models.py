@@ -6,13 +6,12 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 
-
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    # 'master' | 'slave'
+    # 'master' | 'slave' | ADD 'guest'
     role = Column(String, nullable=False, default="slave")
 
     images = relationship("Image", back_populates="author")

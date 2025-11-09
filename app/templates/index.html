@@ -10,6 +10,14 @@
 </head>
 
 <style>
+  input::placeholder {
+    color: #9ca3af;
+  }
+
+  form.group:hover button {
+    box-shadow: 0 0 10px rgba(147, 51, 234, 0.3), 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+
   @keyframes fade {
     from {
       opacity: 0;
@@ -67,11 +75,13 @@
         <!-- ДЕСКТОП МЕНЮ -->
         <nav id="desktopNav" class="hidden sm:flex items-center gap-6 text-lg font-medium">
           <a href="/" class="hover:underline hover:text-yellow-200 transition">Главная</a>
+          {% if at_least_worker(request.state.current_user) %}
           <a href="/upload" class="hover:underline hover:text-yellow-200 transition">Загрузить</a>
+          {% endif %}
           <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
           <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
 
-          {% if request.state.current_user.role == 'master' %}
+          {% if isModelAdmin(request.state.current_user) %}
           <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&unverified={{ 'false' if unverified else 'true' }}"
             class="text-sm bg-white/10 hover:bg-white/20 rounded px-2 py-1">
             {{ 'Все' if unverified else 'Неподтвержденные' }}
@@ -107,7 +117,7 @@
           <a href="/predict" class="hover:underline">Magic</a>
           <a href="/stats" class="hover:underline">Info</a>
 
-          {% if request.state.current_user.role == 'master' %}
+          {% if isModelAdmin(request.state.current_user) %}
           <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&unverified={{ 'false' if unverified else 'true' }}"
             class="text-sm bg-white/20 hover:bg-white/30 rounded px-2 py-1 w-max">
             {{ 'Все' if unverified else 'Неподтвержденные' }}
@@ -123,22 +133,31 @@
       </div>
     </header>
 
-    <div class="flex flex-col items-center mb-6 space-y-2">
-      <form method="get" action="/search" class="flex w-full max-w-xl">
-        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по имени, типу, id"
-          class="w-full p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    <div class="flex flex-col items-center mb-8 space-y-3">
+      <form method="get" action="/search" class="flex w-full max-w-xl relative group">
+        <input type="text" name="search" value="{{ search }}" placeholder="🔍 Поиск по имени, типу или ID..."
+          class="w-full p-3 pl-4 border border-gray-300 rounded-l-xl focus:outline-none focus:ring-4 focus:ring-purple-400/40 shadow-sm text-gray-800" />
         <button type="submit"
-          class="bg-blue-500 text-white p-2 rounded-r-md hover:bg-blue-600 shadow hover:shadow-md transition-transform active:scale-95">
-          Поиск
+          class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 rounded-r-xl font-medium hover:from-blue-500 hover:to-purple-500 transition-all shadow-md hover:shadow-lg active:scale-95 focus:ring-4 focus:ring-purple-300/40">
+          Найти
         </button>
+
+        <!-- Tooltip -->
+        <div
+          class="absolute left-0 top-full mt-2 w-full hidden group-focus-within:block group-hover:block bg-white rounded-xl shadow-lg border border-gray-200 text-gray-700 text-sm p-3 animate-fade z-10">
+          <p class="text-gray-600 mb-1">
+            Можно искать по:
+          </p>
+          <ul class="space-y-0.5">
+            <li><code class="bg-gray-200 px-1 rounded">имени</code> — часть названия файла</li>
+            <li><code class="bg-gray-200 px-1 rounded">типам морщин</code> — например, <i>носогубные складки</i></li>
+            <li><code class="bg-gray-200 px-1 rounded">id:5</code> или <code class="bg-gray-200 px-1 rounded">id>10</code></li>
+            <li><code class="bg-gray-200 px-1 rounded">count<=3</code> — по числу тегов</li>
+          </ul>
+        </div>
       </form>
-      <p class="text-sm text-gray-500 max-w-xl text-center">
-        Можно искать по: <code class="bg-gray-200 px-1 rounded">имени</code>,
-        <code class="bg-gray-200 px-1 rounded">типам морщин</code>,
-        <code class="bg-gray-200 px-1 rounded">По ID: id>10, id<=20, id:5 и т.д</code>
-        <code class="bg-gray-200 px-1 rounded">По кол-ву тегов: count>10, count=20, count<=3 и т.д</code>
-      </p>
     </div>
+
 
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       {% for image in images %}

@@ -1,4 +1,4 @@
-from typing import cast
+from typing import cast, Annotated
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.exceptions import HTTPException
@@ -8,8 +8,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Image, ImageTag, Tag, User
-from app.security import get_current_user
+from app.models import Image, ImageTag, Tag, User, allRoles, Role
+from app.security import MinRoleRequired
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -19,10 +19,8 @@ templates = Jinja2Templates(directory="app/templates")
 async def tags_page(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
-    if cast(str, current_user.role) != "master":
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
     tags = db.query(Tag).order_by(Tag.name.asc()).all()
     return templates.TemplateResponse("tags.html", {"request": request, "tags": tags})
 
@@ -31,10 +29,8 @@ async def tags_page(
 async def create_tag(
     name: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
-    if cast(str, current_user.role) != "master":
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
     name = name.strip()
     if not name:
         raise HTTPException(
@@ -51,10 +47,8 @@ async def create_tag(
 async def delete_tag(
     tag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
-    if cast(str, current_user.role) != "master":
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
     if not tag:
         raise HTTPException(status_code=404, detail="Тег не найден")
@@ -79,29 +73,23 @@ async def delete_tag(
     return RedirectResponse(url="/admin/tags", status_code=303)
 
 
-# Админские роуты для регистрации пользователей (только master)
 @router.get("/admin/users", response_class=HTMLResponse)
 async def create_user_page(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
-    if cast(str, current_user.role) != "master":
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse("register.html", {"request": request, "roles" : allRoles()})
 
 
 @router.post("/admin/users")
 async def create_user(
     username: str = Form(...),
     password: str = Form(...),
-    role: str = Form("slave"),
+    role: str = Form(Role.WORKER.value),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if cast(str, current_user.role) != "master":
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
-
-    role = role if role in ("master", "slave") else "slave"
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
+):  
+    role = role if role in allRoles() else Role.WORKER.value
 
     # Проверка уникальности
     if db.query(User).filter(User.username == username).first():

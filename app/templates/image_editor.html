@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -10,27 +11,40 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(250,250,255,0.4));
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(250, 250, 255, 0.4));
       border-radius: 12px;
       padding: 12px;
     }
+
     canvas {
       border-radius: 8px;
-      box-shadow: 0 6px 18px rgba(15,23,42,0.08);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
       touch-action: none;
       max-width: 100%;
       height: auto;
       display: block;
     }
-    #warning { display: none; }
+
+    #pinchOverlay.show {
+      opacity: 1;
+    }
+
+    #warning {
+      display: none;
+    }
+
     @media (max-width: 768px) {
-      #controls-panel { gap: 8px; }
+      #controls-panel {
+        gap: 8px;
+      }
     }
   </style>
 </head>
+
 <body class="bg-gray-50 font-sans text-gray-800">
   <header class="max-w-screen-lg mx-auto p-4">
-    <div class="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl px-4 py-3 shadow-sm">
+    <div
+      class="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl px-4 py-3 shadow-sm">
       <div class="flex items-center gap-3">
         <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6-6 6M9 7h6a4 4 0 014 4v6" />
@@ -69,17 +83,24 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <button id="finishLine" class="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200">Завершить линию</button>
+        <button id="finishLine" class="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200">Завершить
+          линию</button>
         <button id="clearCurrentLine" class="bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">Очистить текущую</button>
-        <button id="deleteTag" class="bg-red-100 text-red-800 px-3 py-1 rounded hover:bg-red-200">Удалить для текущей</button>
+        <button id="deleteTag" class="bg-red-100 text-red-800 px-3 py-1 rounded hover:bg-red-200">Удалить для
+          текущей</button>
         <button id="showJSON" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Показать JSON</button>
         <button id="goHome" class="bg-white border px-3 py-1 rounded hover:bg-gray-50">Домой Уолтер</button>
       </div>
     </div>
 
-    <div class="canvas-wrap max-w-full">
+    <div class="canvas-wrap max-w-full relative">
       <canvas id="imageCanvas" role="img" aria-label="Canvas для разметки"></canvas>
+      <div id="pinchOverlay"
+        class="absolute inset-0 flex items-center justify-center bg-gray-900/30 text-white text-sm font-medium opacity-0 pointer-events-none transition-opacity duration-300 rounded-lg">
+        Масштабирование...
+      </div>
     </div>
+
 
     <pre id="output" class="bg-white p-3 rounded-md shadow-sm max-h-60 overflow-auto"></pre>
   </main>
@@ -157,16 +178,62 @@
       drawMarks();
     });
 
+    // canvas.addEventListener('pointerdown', (e) => {
+    //   if (currentTag === '__all__') return;
+    //   isDrawing = true;
+    //   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    //   const p = getPointerPos(e);
+    //   currentLine.push(p);
+    //   drawMarks();
+    // });
+
+
+    // canvas.addEventListener('pointermove', (e) => {
+    //   if (!isDrawing) return;
+    //   const p = getPointerPos(e);
+    //   const last = currentLine[currentLine.length - 1];
+    //   if (!last || distance(last, p) > 0.0025) {
+    //     currentLine.push(p);
+    //     drawMarks();
+    //   }
+    // });
+    // canvas.addEventListener('pointerup', (e) => {
+    //   if (!isDrawing) return;
+    //   isDrawing = false;
+    //   try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+    //   drawMarks();
+    // });
+    let activePointers = new Map(); // отслеживаем активные указатели
+    let isPinching = false;
+    const pinchOverlay = document.getElementById('pinchOverlay');
+
+
     canvas.addEventListener('pointerdown', (e) => {
-      if (currentTag === '__all__') return;
+      activePointers.set(e.pointerId, e);
+
+      // Если два пальца — активируем пинч
+      if (activePointers.size > 1) {
+        isPinching = true;
+        pinchOverlay.classList.add('show');
+        return;
+      }
+
+      if (currentTag === '__all__' || isPinching) return;
       isDrawing = true;
-      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
       const p = getPointerPos(e);
       currentLine.push(p);
       drawMarks();
     });
+
     canvas.addEventListener('pointermove', (e) => {
-      if (!isDrawing) return;
+      if (activePointers.size > 1) {
+        isPinching = true;
+        pinchOverlay.classList.add('show');
+        return;
+      }
+
+      if (!isDrawing || isPinching) return;
       const p = getPointerPos(e);
       const last = currentLine[currentLine.length - 1];
       if (!last || distance(last, p) > 0.0025) {
@@ -174,16 +241,33 @@
         drawMarks();
       }
     });
+
     canvas.addEventListener('pointerup', (e) => {
-      if (!isDrawing) return;
+      activePointers.delete(e.pointerId);
+
+      if (activePointers.size === 0) {
+        isPinching = false;
+        pinchOverlay.classList.remove('show');
+      }
+
+      if (!isDrawing || isPinching) return;
       isDrawing = false;
-      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) { }
       drawMarks();
+    });
+
+    canvas.addEventListener('pointercancel', (e) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size === 0) {
+        isPinching = false;
+        pinchOverlay.classList.remove('show');
+      }
+      isDrawing = false;
     });
 
     function distance(a, b) {
       const dx = a.x - b.x, dy = a.y - b.y;
-      return Math.sqrt(dx*dx + dy*dy);
+      return Math.sqrt(dx * dx + dy * dy);
     }
 
     // buttons
@@ -257,7 +341,7 @@
         if (!marks[tag]) continue;
         const baseColor = colorForTag(tag);
         ctx.strokeStyle = tag === currentTag ? baseColor : fadeColor(baseColor, 0.7);
-        
+
         ctx.lineWidth = Math.max(minLineWidth, Math.round(parseInt(thicknessInput.value || 10, 10) * 0.6));
         marks[tag].forEach(line => {
           if (!line.length) return;
@@ -299,8 +383,8 @@
       return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
     }
     function hexToRgb(hex) {
-      const h = hex.replace('#','');
-      return { r: parseInt(h.substring(0,2),16), g: parseInt(h.substring(2,4),16), b: parseInt(h.substring(4,6),16) };
+      const h = hex.replace('#', '');
+      return { r: parseInt(h.substring(0, 2), 16), g: parseInt(h.substring(2, 4), 16), b: parseInt(h.substring(4, 6), 16) };
     }
     function hslToHex(h, s, l) {
       s /= 100; l /= 100;
@@ -319,4 +403,5 @@
     updateWarning();
   </script>
 </body>
+
 </html>
