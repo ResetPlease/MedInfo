@@ -162,7 +162,8 @@ async def get_user_detail(
     )
 
     activity_dates = [
-        d.date if isinstance(d.date, str) else d.date.strftime("%Y-%m-%d")
+        "-" if d.date is None else d.date if isinstance(
+            d.date, str) else d.date.strftime("%Y-%m-%d")
         for d in activity_data
     ]
     activity_counts = [d[1] for d in activity_data]
@@ -186,7 +187,6 @@ async def get_user_detail(
         "activity_dates": activity_dates,
         "activity_counts": activity_counts,
     }
-
 
 
 @router.get("/admin/stats", response_class=HTMLResponse)
