@@ -1,5 +1,5 @@
 import os
-from typing import cast
+from typing import cast, Optional
 from shutil import copyfileobj
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
@@ -27,14 +27,19 @@ async def read_root(
     page: int = 1,
     limit: int = 12,
     unverified: bool = Query(False),
+    status: Optional[int] = Query(None),
 ):
     query = db.query(Image)
-    if unverified and isModelAdmin(current_user):
-        query = query.filter((Image.is_verified == False)
-                             | (Image.is_verified.is_(None)))
+
+    if status is not None:
+        query = query.filter(Image.is_verified == status)
+    elif unverified and isModelAdmin(current_user):
+        query = query.filter((Image.is_verified == False) | (Image.is_verified.is_(None)))
+
     total = query.with_entities(func.count(Image.id)).scalar()
     images = query.offset((page - 1) * limit).limit(limit).all()
     total_pages = (total + limit - 1) // limit
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -46,6 +51,7 @@ async def read_root(
             "isModelAdmin": isModelAdmin,
             "at_least_worker": at_least_worker,
             "unverified": bool(unverified and isModelAdmin(current_user)),
+            "status": status,
         },
     )
 

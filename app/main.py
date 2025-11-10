@@ -1,16 +1,9 @@
 from fastapi import FastAPI
-
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
-
-
-app = FastAPI()
-
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from app.database import init_db
-from app.handlers import admin, backup, images, main, search, segments, statistics, auth
+from app.handlers import (admin, auth, backup, images, main, search, segments,
+                          statistics)
 
 app = FastAPI()
 

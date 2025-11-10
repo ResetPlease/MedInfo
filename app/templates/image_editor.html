@@ -17,6 +17,10 @@
     }
 
     canvas {
+      touch-action: pan-x pan-y pinch-zoom;
+    }
+
+    canvas {
       border-radius: 8px;
       box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
       touch-action: none;
@@ -178,47 +182,18 @@
       drawMarks();
     });
 
-    // canvas.addEventListener('pointerdown', (e) => {
-    //   if (currentTag === '__all__') return;
-    //   isDrawing = true;
-    //   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
-    //   const p = getPointerPos(e);
-    //   currentLine.push(p);
-    //   drawMarks();
-    // });
-
-
-    // canvas.addEventListener('pointermove', (e) => {
-    //   if (!isDrawing) return;
-    //   const p = getPointerPos(e);
-    //   const last = currentLine[currentLine.length - 1];
-    //   if (!last || distance(last, p) > 0.0025) {
-    //     currentLine.push(p);
-    //     drawMarks();
-    //   }
-    // });
-    // canvas.addEventListener('pointerup', (e) => {
-    //   if (!isDrawing) return;
-    //   isDrawing = false;
-    //   try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
-    //   drawMarks();
-    // });
-    let activePointers = new Map(); // отслеживаем активные указатели
     let isPinching = false;
     const pinchOverlay = document.getElementById('pinchOverlay');
 
 
+    let activePointers = new Map();
+
     canvas.addEventListener('pointerdown', (e) => {
       activePointers.set(e.pointerId, e);
 
-      // Если два пальца — активируем пинч
-      if (activePointers.size > 1) {
-        isPinching = true;
-        pinchOverlay.classList.add('show');
-        return;
-      }
+      // если два пальца — не рисуем (даём браузеру зумить)
+      if (activePointers.size > 1 || currentTag === '__all__') return;
 
-      if (currentTag === '__all__' || isPinching) return;
       isDrawing = true;
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
       const p = getPointerPos(e);
@@ -227,13 +202,9 @@
     });
 
     canvas.addEventListener('pointermove', (e) => {
-      if (activePointers.size > 1) {
-        isPinching = true;
-        pinchOverlay.classList.add('show');
-        return;
-      }
+      if (activePointers.size > 1) return; // зумим, не рисуем
+      if (!isDrawing) return;
 
-      if (!isDrawing || isPinching) return;
       const p = getPointerPos(e);
       const last = currentLine[currentLine.length - 1];
       if (!last || distance(last, p) > 0.0025) {
@@ -245,12 +216,7 @@
     canvas.addEventListener('pointerup', (e) => {
       activePointers.delete(e.pointerId);
 
-      if (activePointers.size === 0) {
-        isPinching = false;
-        pinchOverlay.classList.remove('show');
-      }
-
-      if (!isDrawing || isPinching) return;
+      if (!isDrawing || activePointers.size > 0) return;
       isDrawing = false;
       try { canvas.releasePointerCapture(e.pointerId); } catch (err) { }
       drawMarks();
@@ -258,10 +224,6 @@
 
     canvas.addEventListener('pointercancel', (e) => {
       activePointers.delete(e.pointerId);
-      if (activePointers.size === 0) {
-        isPinching = false;
-        pinchOverlay.classList.remove('show');
-      }
       isDrawing = false;
     });
 
