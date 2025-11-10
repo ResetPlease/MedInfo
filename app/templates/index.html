@@ -49,6 +49,14 @@
   .animate-slide {
     animation: slide 0.3s ease-out;
   }
+
+  .image-name {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 </style>
 
 <body class="bg-gray-100 font-sans">
@@ -81,13 +89,6 @@
           <a href="/predict" class="hover:underline hover:text-yellow-200 transition">Magic</a>
           <a href="/stats" class="hover:underline hover:text-yellow-200 transition">Info</a>
 
-          {% if isModelAdmin(request.state.current_user) %}
-          <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&unverified={{ 'false' if unverified else 'true' }}"
-            class="text-sm bg-white/10 hover:bg-white/20 rounded px-2 py-1">
-            {{ 'Все' if unverified else 'Неподтвержденные' }}
-          </a>
-          {% endif %}
-
           <!-- АККАУНТ -->
           <div class="relative">
             <button onclick="toggleMenu()"
@@ -117,13 +118,6 @@
           <a href="/predict" class="hover:underline">Magic</a>
           <a href="/stats" class="hover:underline">Info</a>
 
-          {% if isModelAdmin(request.state.current_user) %}
-          <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&unverified={{ 'false' if unverified else 'true' }}"
-            class="text-sm bg-white/20 hover:bg-white/30 rounded px-2 py-1 w-max">
-            {{ 'Все' if unverified else 'Неподтвержденные' }}
-          </a>
-          {% endif %}
-
           <form action="/logout" method="post" class="mt-1">
             <button class="text-sm bg-white/20 hover:bg-white/30 rounded px-2 py-1 w-max">
               Выйти ({{ request.state.current_user.username }})
@@ -151,11 +145,51 @@
           <ul class="space-y-0.5">
             <li><code class="bg-gray-200 px-1 rounded">имени</code> — часть названия файла</li>
             <li><code class="bg-gray-200 px-1 rounded">типам морщин</code> — например, <i>носогубные складки</i></li>
-            <li><code class="bg-gray-200 px-1 rounded">id:5</code> или <code class="bg-gray-200 px-1 rounded">id>10</code></li>
+            <li><code class="bg-gray-200 px-1 rounded">id:5</code> или <code
+                class="bg-gray-200 px-1 rounded">id>10</code></li>
             <li><code class="bg-gray-200 px-1 rounded">count<=3</code> — по числу тегов</li>
           </ul>
         </div>
       </form>
+      <div class="flex flex-wrap justify-center gap-2 mb-4 text-sm">
+        {% set current_status = status if status is not none else -1 %}
+
+        <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1" class="px-3 py-1 rounded-full border text-xs sm:text-sm
+         {% if current_status == -1 %}
+           bg-blue-600 text-white border-blue-600
+         {% else %}
+           bg-white text-gray-700 border-gray-300 hover:bg-gray-100
+         {% endif %}">
+          Все
+        </a>
+
+        <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&status=0" class="px-3 py-1 rounded-full border text-xs sm:text-sm
+         {% if current_status == 0 %}
+           bg-red-600 text-white border-red-600
+         {% else %}
+           bg-white text-red-700 border-red-200 hover:bg-red-50
+         {% endif %}">
+          Не проверено
+        </a>
+
+        <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&status=1" class="px-3 py-1 rounded-full border text-xs sm:text-sm
+         {% if current_status == 1 %}
+           bg-yellow-500 text-white border-yellow-500
+         {% else %}
+           bg-white text-yellow-700 border-yellow-200 hover:bg-yellow-50
+         {% endif %}">
+          Готово к разметке
+        </a>
+
+        <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page=1&status=2" class="px-3 py-1 rounded-full border text-xs sm:text-sm
+         {% if current_status == 2 %}
+           bg-green-600 text-white border-green-600
+         {% else %}
+           bg-white text-green-700 border-green-200 hover:bg-green-50
+         {% endif %}">
+          Проверено
+        </a>
+      </div>
     </div>
 
 
@@ -192,7 +226,10 @@
           </div>
 
           <div class="p-4">
-            <h3 class="text-lg font-semibold text-gray-800">{{ image.name }}</h3>
+            <h3 class="image-name text-lg font-semibold text-gray-800" title="{{ image.name }}">
+              {{ image.name }}
+            </h3>
+
             <p class="text-gray-500 text-sm">ID: {{ image.id }}</p>
             <p class="text-gray-600 text-sm truncate" title="{{ image.tags }}">
               Теги: {{ image.tags }}
@@ -221,10 +258,13 @@
       {% if p == page %}
       <span class="px-4 py-2 bg-blue-500 text-white rounded">{{ p }}</span>
       {% else %}
-      <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page={{ p }}{% if unverified %}&unverified=true{% endif %}"
+      <a href="/{% if search %}search?search={{ search }}&{% else %}?{% endif %}page={{ p }}
+          {% if status is not none %}&status={{ status }}{% endif %}
+          {% if unverified %}&unverified=true{% endif %}"
         class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
         {{ p }}
       </a>
+
       {% endif %}
       {% endfor %}
     </div>

@@ -78,7 +78,7 @@ async def create_user_page(
     request: Request,
     current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
 ):
-    return templates.TemplateResponse("register.html", {"request": request, "roles" : allRoles()})
+    return templates.TemplateResponse("register.html", {"request": request, "roles": allRoles()})
 
 
 @router.post("/admin/users")
@@ -88,7 +88,7 @@ async def create_user(
     role: str = Form(Role.WORKER.value),
     db: Session = Depends(get_db),
     current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
-):  
+):
     role = role if role in allRoles() else Role.WORKER.value
 
     # Проверка уникальности
@@ -108,3 +108,105 @@ async def create_user(
     db.commit()
 
     return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.get("/api/admin/users")
+async def get_admin_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
+):
+    users = db.query(User).all()
+    result = []
+    for u in users:
+        activity_data = (
+            db.query(
+                func.date(Image.uploaded_at).label("date"),
+                func.count(Image.id)
+            )
+            .filter(Image.author_id == u.id)
+            .group_by(func.date(Image.uploaded_at))
+            .order_by(func.date(Image.uploaded_at))
+            .all()
+        )
+        result.append({
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "images": len(u.images),
+            "segmentations": sum(len(i.segmentations) for i in u.images),
+            "activity_dates": [str(a.date) for a in activity_data],
+            "activity_counts": [a[1] for a in activity_data],
+        })
+    return result
+
+
+@router.get("/api/admin/users/{user_id}")
+async def get_user_detail(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    activity_data = (
+        db.query(
+            func.date(Image.uploaded_at).label("date"),
+            func.count(Image.id)
+        )
+        .filter(Image.author_id == user.id)
+        .group_by(func.date(Image.uploaded_at))
+        .order_by(func.date(Image.uploaded_at))
+        .all()
+    )
+
+    activity_dates = [
+        d.date if isinstance(d.date, str) else d.date.strftime("%Y-%m-%d")
+        for d in activity_data
+    ]
+    activity_counts = [d[1] for d in activity_data]
+
+    images = [
+        {
+            "id": img.id,
+            "name": img.name,
+            "uploaded_at": img.uploaded_at.isoformat() if img.uploaded_at else None,
+            "segmentations": len(img.segmentations),
+            "is_verified": bool(img.is_verified),
+        }
+        for img in user.images
+    ]
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "images": images,
+        "activity_dates": activity_dates,
+        "activity_counts": activity_counts,
+    }
+
+
+
+@router.get("/admin/stats", response_class=HTMLResponse)
+async def admin_stats_page(
+    request: Request,
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
+):
+    return templates.TemplateResponse("admin_stats.html", {"request": request})
+
+
+@router.get("/admin/users/{user_id}/stats", response_class=HTMLResponse)
+async def admin_user_detail_page(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return templates.TemplateResponse(
+        "admin_user_detail.html", {"request": request, "user": user}
+    )

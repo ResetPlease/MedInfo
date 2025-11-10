@@ -10,7 +10,7 @@ from fastapi import Depends, Request, Query, APIRouter
 from app.models import User, Image, isModelAdmin, at_least_worker
 from app.security import get_current_user
 from app.database import get_db
-from typing import List
+from typing import List, Optional
 
 import re
 
@@ -120,20 +120,22 @@ async def search_images(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     unverified: bool = Query(False),
+    status: Optional[int] = Query(None),
 ):
-    all_images = db.query(Image).all()
+    query = db.query(Image)
+
+    if status is not None:
+        query = query.filter(Image.is_verified == status)
+    elif unverified and isModelAdmin(current_user):
+        query = query.filter((Image.is_verified == False) | (Image.is_verified.is_(None)))
+
+    all_images = query.all()
 
     if search:
         search_params = parse_search_query(search)
-        print(search_params)
         filtered_images = apply_search_filters(all_images, search_params)
     else:
         filtered_images = all_images
-
-    if unverified and isModelAdmin(current_user):
-        filtered_images = [
-            img for img in filtered_images if not getattr(img, "is_verified", False)
-        ]
 
     total = len(filtered_images)
     from_search = min(len(filtered_images) - 1, (page - 1) * limit)
@@ -152,7 +154,8 @@ async def search_images(
             "page": page,
             "total_pages": total_pages,
             "at_least_worker": at_least_worker,
-            "isModelAdmin" : isModelAdmin,
+            "isModelAdmin": isModelAdmin,
             "unverified": bool(unverified and isModelAdmin(current_user)),
+            "status": status,
         },
     )
