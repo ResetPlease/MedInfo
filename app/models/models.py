@@ -11,10 +11,19 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    # 'master' | 'slave' | ADD 'guest'
-    role = Column(String, nullable=False, default="slave")
+    # 'owner' | 'worker' | 'guest' (legacy master/slave поддерживаются миграцией)
+    role = Column(String, nullable=False, default="worker")
 
-    images = relationship("Image", back_populates="author")
+    images = relationship(
+        "Image",
+        back_populates="author",
+        foreign_keys="Image.author_id",
+    )
+    assigned_images = relationship(
+        "Image",
+        back_populates="assigned_user",
+        foreign_keys="Image.assigned_user_id",
+    )
 
 
 class Segmentation(Base):
@@ -39,10 +48,20 @@ class Image(Base):
 
     # New fields
     author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     is_verified = Column(Integer, default=0, nullable=True)
 
-    author = relationship("User", back_populates="images")
+    author = relationship(
+        "User",
+        back_populates="images",
+        foreign_keys=[author_id],
+    )
+    assigned_user = relationship(
+        "User",
+        back_populates="assigned_images",
+        foreign_keys=[assigned_user_id],
+    )
     tag_links = relationship(
         "ImageTag", back_populates="image", cascade="all, delete-orphan")
     segmentations = relationship(

@@ -2,7 +2,7 @@ from typing import Annotated, Any, Optional
 
 from fastapi import Depends, HTTPException
 
-from app.models import Role, User, get_role_level
+from app.models import Role, User, get_role_level, normalize_role
 
 from .security import get_current_user
 
@@ -14,7 +14,7 @@ class MinRoleRequired():
     def __call__(self, user: Annotated[User, Depends(get_current_user)]) -> Any:
         role: Optional[Role] = None
         try:
-            role = Role(user.role)
+            role = normalize_role(user.role)
         except:
             raise HTTPException(
                 status_code=403, detail="Недостаточно прав: неверная роль")

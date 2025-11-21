@@ -28,15 +28,19 @@ async def read_root(
     limit: int = 12,
     unverified: bool = Query(False),
     status: Optional[int] = Query(None),
+    mine: bool = Query(False),
 ):
     query = db.query(Image)
 
+    if mine:
+        query = query.filter(Image.assigned_user_id == current_user.id)
     if status is not None:
         query = query.filter(Image.is_verified == status)
     elif unverified and isModelAdmin(current_user):
         query = query.filter((Image.is_verified == False) | (Image.is_verified.is_(None)))
 
-    total = query.with_entities(func.count(Image.id)).scalar()
+    found_total = query.with_entities(func.count(Image.id)).scalar()
+    total = found_total
     images = query.offset((page - 1) * limit).limit(limit).all()
     total_pages = (total + limit - 1) // limit
 
@@ -52,6 +56,8 @@ async def read_root(
             "at_least_worker": at_least_worker,
             "unverified": bool(unverified and isModelAdmin(current_user)),
             "status": status,
+            "found_total": found_total,
+            "mine": mine,
         },
     )
 
