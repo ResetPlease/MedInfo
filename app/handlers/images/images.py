@@ -57,12 +57,16 @@ async def image_detail(
         Image.id > image.id).order_by(Image.id.asc()).first()
     if not next_image:
         next_image = Image(id=0)
+    assignee_options = []
+    if isModelAdmin(current_user):
+        assignee_options = db.query(User).order_by(User.username.asc()).all()
     return templates.TemplateResponse(
         "image_detail.html",
         {"request": request, "image": image, "tags": tag_names,
             "prev_id": prev_image.id, "next_id": next_image.id,
             "isModelAdmin": isModelAdmin,
-            "at_least_worker":at_least_worker},
+            "at_least_worker":at_least_worker,
+            "assignee_options": assignee_options},
     )
 
 

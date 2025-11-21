@@ -1,4 +1,4 @@
-from typing import cast, Annotated
+from typing import cast, Annotated, Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.exceptions import HTTPException
@@ -210,3 +210,34 @@ async def admin_user_detail_page(
     return templates.TemplateResponse(
         "admin_user_detail.html", {"request": request, "user": user}
     )
+
+
+@router.post("/admin/images/{image_id}/assign")
+async def assign_image(
+    image_id: int,
+    assigned_user_id: Annotated[Optional[str], Form(...)],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(MinRoleRequired(Role.ADMIN)),
+):
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="image not found")
+
+    assignee_id: Optional[int] = None
+    if assigned_user_id:
+        try:
+            assignee_id = int(assigned_user_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="invalid user id")
+
+    assignee = None
+    if assignee_id:
+        assignee = db.query(User).filter(User.id == assignee_id).first()
+        if not assignee:
+            raise HTTPException(status_code=404, detail="user not found")
+
+    image.assigned_user_id = assignee.id if assignee else None
+    db.commit()
+
+    return RedirectResponse(url=f"/image/{image.id}", status_code=303)

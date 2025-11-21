@@ -32,8 +32,8 @@ def init_db():
     # Легкая миграция для добавления недостающих колонок в images
     _migrate_schema_sqlite()
 
-    # Создание дефолтного пользователя master, если пользователей нет
-    _ensure_default_master_user()
+    # Создание дефолтного пользователя owner, если пользователей нет
+    _ensure_default_owner_user()
 
 
 def _get_existing_columns(table_name: str) -> Set[str]:
@@ -45,6 +45,7 @@ def _get_existing_columns(table_name: str) -> Set[str]:
 
 def _migrate_schema_sqlite():
     from app.models import Image, Tag, ImageTag, User
+
     try:
         cols = _get_existing_columns("images")
 
@@ -56,9 +57,15 @@ def _migrate_schema_sqlite():
         if "uploaded_at" not in cols:
             alter_statements.append(
                 "ALTER TABLE images ADD COLUMN uploaded_at DATETIME")
+        if "assigned_user_id" not in cols:
+            alter_statements.append(
+                "ALTER TABLE images ADD COLUMN assigned_user_id INTEGER")
 
         # обработка is_verified
         with engine.begin() as conn:
+            for stmt in alter_statements:
+                conn.exec_driver_sql(stmt)
+
             if "is_verified" not in cols:
                 # если поля нет — просто добавляем как INTEGER
                 conn.exec_driver_sql(
@@ -81,20 +88,30 @@ def _migrate_schema_sqlite():
                             tags TEXT,
                             author_id INTEGER,
                             uploaded_at DATETIME,
-                            is_verified INTEGER DEFAULT 0
+                            is_verified INTEGER DEFAULT 0,
+                            assigned_user_id INTEGER
                         );
                     """)
                     # переносим данные
                     conn.exec_driver_sql("""
-                        INSERT INTO images (id, name, file_path, tags, author_id, uploaded_at, is_verified)
+                        INSERT INTO images (id, name, file_path, tags, author_id, uploaded_at, is_verified, assigned_user_id)
                         SELECT id, name, file_path, tags, author_id, uploaded_at,
-                               CASE WHEN is_verified THEN 1 ELSE 0 END
+                               CASE WHEN is_verified THEN 1 ELSE 0 END,
+                               NULL
                         FROM images_old;
                     """)
                     conn.exec_driver_sql("DROP TABLE images_old;")
 
         with Session(bind=engine) as session:
             images = session.query(Image).all()
+
+            # Перегоняем legacy роли master/slave -> owner/worker
+            legacy_map = {"master": "owner", "slave": "worker"}
+            users_with_legacy = session.query(User).filter(
+                User.role.in_(legacy_map.keys())
+            ).all()
+            for user in users_with_legacy:
+                user.role = legacy_map.get(user.role, user.role)
 
             unique_tags = set()
             for img in images:
@@ -135,7 +152,7 @@ def _migrate_schema_sqlite():
         print("Migration failed:", e)
 
 
-def _ensure_default_master_user():
+def _ensure_default_owner_user():
     from app.models import User
     admin_pass = "imsexy2004"
 
@@ -150,6 +167,6 @@ def _ensure_default_master_user():
                 password_hash = admin_pass
 
             user = User(username="admin",
-                        password_hash=password_hash, role="master")
+                        password_hash=password_hash, role="owner")
             session.add(user)
             session.commit()
