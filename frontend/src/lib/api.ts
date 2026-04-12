@@ -23,6 +23,7 @@ export type ImageCard = {
   is_verified: number | null;
   uploaded_at: string | null;
   author: RelatedUser | null;
+  authors: RelatedUser[];
   assigned_user: RelatedUser | null;
   assigned_to_current_user: boolean;
 };

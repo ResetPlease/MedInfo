@@ -7,6 +7,7 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.models import Image, ImageTag, Tag, User
+from app.services.image_authors import register_image_author
 from app.services.image_status import STATUS_TAGS_PENDING
 
 UPLOAD_DIR = "app/uploads"
@@ -53,6 +54,7 @@ def create_image(
     )
     db.add(image)
     db.flush()
+    register_image_author(db, image, current_user)
 
     _sync_image_tags(db, image, normalized_tags)
 

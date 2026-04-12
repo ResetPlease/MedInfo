@@ -3,11 +3,11 @@ from typing import cast
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, or_
+from sqlalchemy import distinct, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Image, ImageTag, Segmentation, Tag, User, allRoles, Role, isModelAdmin
+from app.models import Image, ImageAuthor, ImageTag, Segmentation, Tag, User, allRoles, Role, isModelAdmin
 from app.security import get_current_user_api
 from app.services import (
     STATUS_DONE,
@@ -38,19 +38,26 @@ def require_admin_api(current_user: User) -> User:
 def serialize_admin_user(db: Session, user: User) -> dict:
     activity_data = (
         db.query(
-            func.date(Image.uploaded_at).label("date"),
-            func.count(Image.id)
+            func.date(ImageAuthor.created_at).label("date"),
+            func.count(ImageAuthor.id)
         )
-        .filter(Image.author_id == user.id)
-        .group_by(func.date(Image.uploaded_at))
-        .order_by(func.date(Image.uploaded_at))
+        .filter(ImageAuthor.user_id == user.id)
+        .group_by(func.date(ImageAuthor.created_at))
+        .order_by(func.date(ImageAuthor.created_at))
         .all()
     )
 
+    images_count = (
+        db.query(func.count(distinct(ImageAuthor.image_id)))
+        .filter(ImageAuthor.user_id == user.id)
+        .scalar()
+    )
+
     segmentations_count = (
-        db.query(func.count(Segmentation.id))
+        db.query(func.count(distinct(Segmentation.id)))
         .join(Image, Segmentation.image_id == Image.id)
-        .filter(Image.author_id == user.id)
+        .join(ImageAuthor, ImageAuthor.image_id == Image.id)
+        .filter(ImageAuthor.user_id == user.id)
         .scalar()
     )
 
@@ -64,7 +71,7 @@ def serialize_admin_user(db: Session, user: User) -> dict:
         "id": user.id,
         "username": user.username,
         "role": user.role,
-        "images": len(user.images),
+        "images": int(images_count or 0),
         "segmentations": int(segmentations_count or 0),
         "assigned_images": int(assigned_images_count or 0),
         "activity_dates": [str(a.date) for a in activity_data],
@@ -149,12 +156,12 @@ async def get_user_detail(
 
     activity_data = (
         db.query(
-            func.date(Image.uploaded_at).label("date"),
-            func.count(Image.id)
+            func.date(ImageAuthor.created_at).label("date"),
+            func.count(ImageAuthor.id)
         )
-        .filter(Image.author_id == user.id)
-        .group_by(func.date(Image.uploaded_at))
-        .order_by(func.date(Image.uploaded_at))
+        .filter(ImageAuthor.user_id == user.id)
+        .group_by(func.date(ImageAuthor.created_at))
+        .order_by(func.date(ImageAuthor.created_at))
         .all()
     )
 
@@ -173,7 +180,13 @@ async def get_user_detail(
             "segmentations": len(img.segmentations),
             "is_verified": img.is_verified,
         }
-        for img in user.images
+        for img in (
+            db.query(Image)
+            .join(ImageAuthor, ImageAuthor.image_id == Image.id)
+            .filter(ImageAuthor.user_id == user.id)
+            .order_by(Image.id.desc())
+            .all()
+        )
     ]
 
     return {

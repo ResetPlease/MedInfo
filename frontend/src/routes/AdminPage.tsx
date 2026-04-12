@@ -142,6 +142,38 @@ function ActivityBars({
   );
 }
 
+function MiniActivityBars({ items }: { items: Array<{ label: string; value: number }> }) {
+  if (!items.length) {
+    return (
+      <div className="flex min-w-[200px] items-end gap-1">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="h-3 flex-1 rounded-t-full bg-slate-100" />
+        ))}
+      </div>
+    );
+  }
+
+  const maxValue = Math.max(...items.map((item) => item.value), 1);
+
+  return (
+    <div className="flex min-w-[200px] items-end gap-1">
+      {items.map((item) => {
+        const height = item.value ? Math.max((item.value / maxValue) * 52, 10) : 6;
+        return (
+          <div
+            key={item.label}
+            className="flex-1 rounded-t-full bg-sky-100"
+            style={{ height: `${height}px` }}
+            title={`${item.label}: ${item.value}`}
+          >
+            <div className="h-full rounded-t-full bg-sky-500" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function AdminPage({ currentUser }: AdminPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -623,13 +655,7 @@ export function AdminPage({ currentUser }: AdminPageProps) {
                             {user.images} изображений • {user.segmentations} сегментаций • {user.assigned_images} назначено
                           </p>
                         </div>
-                        <div className="flex min-w-[200px] items-end gap-1">
-                          {aggregateActivity(user.activity_dates, user.activity_counts).slice(-12).map((item) => (
-                            <div key={item.label} className="flex-1 rounded-t-full bg-sky-100" style={{ height: `${Math.max(item.value * 8, item.value ? 12 : 6)}px` }}>
-                              <div className="h-full rounded-t-full bg-sky-500" />
-                            </div>
-                          ))}
-                        </div>
+                        <MiniActivityBars items={aggregateActivity(user.activity_dates, user.activity_counts).slice(-12)} />
                       </div>
                     </button>
                   );

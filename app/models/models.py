@@ -24,6 +24,11 @@ class User(Base):
         back_populates="assigned_user",
         foreign_keys="Image.assigned_user_id",
     )
+    image_authorships = relationship(
+        "ImageAuthor",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Segmentation(Base):
@@ -62,10 +67,27 @@ class Image(Base):
         back_populates="assigned_images",
         foreign_keys=[assigned_user_id],
     )
+    author_links = relationship(
+        "ImageAuthor", back_populates="image", cascade="all, delete-orphan")
     tag_links = relationship(
         "ImageTag", back_populates="image", cascade="all, delete-orphan")
     segmentations = relationship(
         "Segmentation", back_populates="image", cascade="all, delete-orphan")
+
+
+class ImageAuthor(Base):
+    __tablename__ = "image_authors"
+    id = Column(Integer, primary_key=True, index=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    image = relationship("Image", back_populates="author_links")
+    user = relationship("User", back_populates="image_authorships")
+
+    __table_args__ = (
+        UniqueConstraint("image_id", "user_id", name="uq_image_author"),
+    )
 
 
 class Tag(Base):

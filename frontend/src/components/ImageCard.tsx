@@ -20,6 +20,10 @@ function formatDate(value: string | null) {
 }
 
 export function ImageCard({ image }: ImageCardProps) {
+  const authorsLabel = image.authors.length
+    ? image.authors.map((author) => author.username).join(", ")
+    : image.author?.username ?? "admin";
+
   return (
     <a
       href={`/image/${image.id}`}
@@ -88,8 +92,8 @@ export function ImageCard({ image }: ImageCardProps) {
 
         <dl className="mt-5 grid gap-2 text-sm text-slate-500">
           <div className="flex items-center justify-between gap-4">
-            <dt>Автор</dt>
-            <dd className="truncate font-medium text-slate-700">{image.author?.username ?? "admin"}</dd>
+            <dt>Авторы</dt>
+            <dd className="truncate font-medium text-slate-700" title={authorsLabel}>{authorsLabel}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt>Назначено</dt>

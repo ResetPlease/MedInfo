@@ -20,6 +20,7 @@ from app.services import (
     get_image_listing,
     get_tag_names,
     needs_markup_review_after_change,
+    register_image_author,
     sync_image_tags,
     serialize_current_user,
     serialize_image_card,
@@ -276,6 +277,7 @@ async def update_image_api(
 
     image.name = payload.name
     image.tags = ",".join(payload.tags)
+    register_image_author(db, image, current_user)
     sync_image_tags(db, image, payload.tags)
     db.commit()
     db.refresh(image)
@@ -315,6 +317,7 @@ async def upsert_segmentation_api(
         segmentation = Segmentation(image_id=image_id, label=label, data=lines)
         db.add(segmentation)
 
+    register_image_author(db, image, current_user)
     if needs_markup_review_after_change(image.is_verified):
         image.is_verified = STATUS_MARKUP_REVIEW
 
@@ -345,11 +348,11 @@ async def delete_segmentation_api(
     if segmentation:
         db.delete(segmentation)
 
+    register_image_author(db, image, current_user)
     if needs_markup_review_after_change(image.is_verified):
         image.is_verified = STATUS_MARKUP_REVIEW
 
-    if segmentation:
-        db.commit()
+    db.commit()
 
     return {"status": "deleted", "label": label}
 

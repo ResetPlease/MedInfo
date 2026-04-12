@@ -91,6 +91,9 @@ export function ImageDetailPage({ currentUser }: ImageDetailPageProps) {
   }, [imageId]);
 
   const image = detail?.image ?? null;
+  const authorsLabel = image?.authors.length
+    ? image.authors.map((author) => author.username).join(", ")
+    : image?.author?.username ?? "admin";
 
   const canEdit = currentUser.permissions.at_least_worker;
   const canAdmin = currentUser.permissions.is_admin;
@@ -331,8 +334,8 @@ export function ImageDetailPage({ currentUser }: ImageDetailPageProps) {
 
           <dl className="mt-6 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <dt className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Автор</dt>
-              <dd className="mt-2 text-sm font-semibold text-ink">{image.author?.username ?? "admin"}</dd>
+              <dt className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Авторы</dt>
+              <dd className="mt-2 text-sm font-semibold text-ink">{authorsLabel}</dd>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
               <dt className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Назначено</dt>
