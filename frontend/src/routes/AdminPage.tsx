@@ -103,6 +103,60 @@ function aggregateActivity(
   }));
 }
 
+function buildRecentDayKeys(days: number): string[] {
+  const anchor = new Date();
+  anchor.setHours(0, 0, 0, 0);
+
+  const keys: string[] = [];
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const current = new Date(anchor);
+    current.setDate(anchor.getDate() - index);
+    keys.push(
+      `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`,
+    );
+  }
+
+  return keys;
+}
+
+function formatDayKey(key: string) {
+  const [year, month, day] = key.split("-");
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return parsed.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function buildMiniActivity(
+  dates: string[],
+  counts: number[],
+  dayKeys: string[],
+): Array<{ label: string; value: number }> {
+  const buckets = new Map<string, number>();
+  dayKeys.forEach((key) => buckets.set(key, 0));
+
+  dates.forEach((rawDate, index) => {
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) {
+      return;
+    }
+
+    const key =
+      `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+    if (!buckets.has(key)) {
+      return;
+    }
+
+    buckets.set(key, (buckets.get(key) ?? 0) + (counts[index] ?? 0));
+  });
+
+  return dayKeys.map((key) => ({
+    label: formatDayKey(key),
+    value: buckets.get(key) ?? 0,
+  }));
+}
+
 function ActivityBars({
   items,
   barTone,
@@ -142,23 +196,20 @@ function ActivityBars({
   );
 }
 
-function MiniActivityBars({ items }: { items: Array<{ label: string; value: number }> }) {
-  if (!items.length) {
-    return (
-      <div className="flex min-w-[200px] items-end gap-1">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="h-3 flex-1 rounded-t-full bg-slate-100" />
-        ))}
-      </div>
-    );
-  }
-
-  const maxValue = Math.max(...items.map((item) => item.value), 1);
+function MiniActivityBars({
+  items,
+  maxValue,
+}: {
+  items: Array<{ label: string; value: number }>;
+  maxValue: number;
+}) {
+  const normalizedMax = Math.max(maxValue, 1);
 
   return (
     <div className="flex min-w-[200px] items-end gap-1">
       {items.map((item) => {
-        const height = item.value ? Math.max((item.value / maxValue) * 52, 10) : 6;
+        const ratio = item.value ? Math.sqrt(item.value) / Math.sqrt(normalizedMax) : 0;
+        const height = item.value ? Math.max(ratio * 52, 8) : 6;
         return (
           <div
             key={item.label}
@@ -288,6 +339,19 @@ export function AdminPage({ currentUser }: AdminPageProps) {
   const userActivity = selectedUser
     ? aggregateActivity(selectedUser.activity_dates, selectedUser.activity_counts)
     : [];
+  const recentDayKeys = useMemo(() => buildRecentDayKeys(7), []);
+  const miniActivityByUser = useMemo(() => {
+    return new Map(
+      users.map((user) => [
+        user.id,
+        buildMiniActivity(user.activity_dates, user.activity_counts, recentDayKeys),
+      ]),
+    );
+  }, [recentDayKeys, users]);
+  const miniActivityMax = useMemo(() => {
+    const values = Array.from(miniActivityByUser.values()).flatMap((items) => items.map((item) => item.value));
+    return Math.max(...values, 1);
+  }, [miniActivityByUser]);
 
   async function reloadSummaryAndUsers() {
     const [summaryData, usersData] = await Promise.all([
@@ -655,7 +719,10 @@ export function AdminPage({ currentUser }: AdminPageProps) {
                             {user.images} изображений • {user.segmentations} сегментаций • {user.assigned_images} назначено
                           </p>
                         </div>
-                        <MiniActivityBars items={aggregateActivity(user.activity_dates, user.activity_counts).slice(-12)} />
+                        <MiniActivityBars
+                          items={miniActivityByUser.get(user.id) ?? buildMiniActivity([], [], recentDayKeys)}
+                          maxValue={miniActivityMax}
+                        />
                       </div>
                     </button>
                   );
