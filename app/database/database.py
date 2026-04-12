@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Set
 
 from sqlalchemy import create_engine
@@ -44,7 +45,7 @@ def _get_existing_columns(table_name: str) -> Set[str]:
 
 
 def _migrate_schema_sqlite():
-    from app.models import Image, Tag, ImageTag, User
+    from app.models import Image, ImageAuthor, Tag, ImageTag, User
 
     try:
         cols = _get_existing_columns("images")
@@ -146,6 +147,22 @@ def _migrate_schema_sqlite():
             if admin:
                 session.query(Image).filter(Image.author_id.is_(
                     None)).update({Image.author_id: admin.id})
+
+            existing_authors = {
+                (item.image_id, item.user_id)
+                for item in session.query(ImageAuthor).all()
+            }
+            for img in images:
+                if not img.author_id:
+                    continue
+                key = (img.id, img.author_id)
+                if key in existing_authors:
+                    continue
+                session.add(ImageAuthor(
+                    image_id=img.id,
+                    user_id=img.author_id,
+                    created_at=img.uploaded_at or datetime.utcnow(),
+                ))
             session.commit()
 
     except Exception as e:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 import re
 from typing import Any, Optional
 
@@ -79,6 +80,7 @@ def serialize_current_user(user: User) -> dict[str, Any]:
 
 def serialize_image_card(image: Image, current_user: User) -> dict[str, Any]:
     tags = _split_tags(image.tags)
+    authors = _serialize_image_authors(image)
 
     return {
         "id": image.id,
@@ -89,6 +91,7 @@ def serialize_image_card(image: Image, current_user: User) -> dict[str, Any]:
         "is_verified": image.is_verified,
         "uploaded_at": image.uploaded_at.isoformat() if image.uploaded_at else None,
         "author": _serialize_related_user(image.author),
+        "authors": authors,
         "assigned_user": _serialize_related_user(image.assigned_user),
         "assigned_to_current_user": bool(
             image.assigned_user and image.assigned_user.id == current_user.id
@@ -224,6 +227,23 @@ def _serialize_related_user(user: Optional[User]) -> Optional[dict[str, Any]]:
         "username": user.username,
         "role": user.role,
     }
+
+
+def _serialize_image_authors(image: Image) -> list[dict[str, Any]]:
+    seen_user_ids = set()
+    authors = []
+
+    if image.author:
+        seen_user_ids.add(image.author.id)
+        authors.append(_serialize_related_user(image.author))
+
+    for link in sorted(image.author_links, key=lambda item: item.created_at or datetime.min):
+        if not link.user or link.user.id in seen_user_ids:
+            continue
+        seen_user_ids.add(link.user.id)
+        authors.append(_serialize_related_user(link.user))
+
+    return [author for author in authors if author]
 
 
 def _split_tags(tags: Optional[str], lower: bool = False) -> list[str]:

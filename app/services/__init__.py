@@ -4,6 +4,7 @@ from .image_listing import (
     serialize_current_user,
     serialize_image_card,
 )
+from .image_authors import register_image_author
 from .image_upload import (
     create_image,
     get_tag_names,
