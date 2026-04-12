@@ -1,14 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Optional, cast
 
-from fastapi import Depends, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi import Depends, HTTPException, Request
 from jose import JWTError, jwt
 from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, Role
+from app.models import User
 
 # Лучше вынести в env / настройки
 SECRET_KEY = "super_public_secret"
@@ -45,26 +44,48 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     return user
 
 
+def _decode_token(token: str) -> str:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError as err:
+        raise HTTPException(status_code=401, detail="Недействительный токен") from err
+
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="Токен не содержит пользователя")
+
+    return username
+
+
+def _resolve_user_by_cookie(
+    request: Request,
+    db: Session,
+) -> User:
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
+
+    username = _decode_token(token)
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+
+    request.state.current_user = user
+    return user
+
+
 def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
 ) -> User:
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=303, headers={"Location": "/login"})
-
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=303, headers={
-                                "Location": "/login"})
-    except JWTError:
+        return _resolve_user_by_cookie(request, db)
+    except HTTPException:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
 
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        raise HTTPException(status_code=303, headers={"Location": "/login"})
 
-    request.state.current_user = user
-    return user
+def get_current_user_api(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    return _resolve_user_by_cookie(request, db)

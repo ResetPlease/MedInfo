@@ -40,7 +40,7 @@ async def create_backup(
                 "tags": image.tags.split(","),
                 "author_id": image.author_id,
                 "uploaded_at": image.uploaded_at.isoformat() if image.uploaded_at else None,
-                "is_verified": bool(image.is_verified),
+                "is_verified": image.is_verified,
             }
         )
 
