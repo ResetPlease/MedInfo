@@ -268,6 +268,7 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
   const gestureRef = useRef<PointerGesture>(null);
   const draftLineRef = useRef<Point[]>([]);
   const saveRequestIdRef = useRef(0);
+  const viewportInitializedRef = useRef(false);
 
   useEffect(() => {
     viewportRef.current = viewport;
@@ -320,6 +321,7 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
         setDraftLine([]);
         setSaveState("idle");
         setNaturalSize({ width: 0, height: 0 });
+        viewportInitializedRef.current = false;
       } catch (err) {
         if (err instanceof Response && err.status === 401) {
           window.location.assign("/login");
@@ -430,6 +432,11 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
       return;
     }
 
+    if (viewportInitializedRef.current) {
+      return;
+    }
+
+    viewportInitializedRef.current = true;
     setViewport(
       buildInitialViewport(
         workspaceSize.width,
