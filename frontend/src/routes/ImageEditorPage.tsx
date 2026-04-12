@@ -92,6 +92,18 @@ function countTagLines(segmentations: SegmentationMap, label: string) {
   return segmentations[label]?.length ?? 0;
 }
 
+function strokeWidthLabel(value: number) {
+  if (value === 3) {
+    return "Тонкая";
+  }
+
+  if (value === 5) {
+    return "Средняя";
+  }
+
+  return "Толстая";
+}
+
 function buildInitialViewport(
   workspaceWidth: number,
   workspaceHeight: number,
@@ -628,7 +640,7 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
     }
 
     const pointerType = event.pointerType;
-    if (pointerType === "mouse" && event.button === 1) {
+    if (pointerType === "mouse" && (event.button === 1 || event.button === 2)) {
       event.preventDefault();
       gestureRef.current = {
         kind: "pan",
@@ -858,20 +870,14 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
     gestureRef.current = null;
   }
 
-  function handleDeleteActiveTag() {
-    if (!activeTag || !segmentations[activeTag]?.length) {
-      return;
-    }
-
-    const confirmed = window.confirm(`Удалить всю разметку для тега «${activeTag}»?`);
-    if (!confirmed) {
-      return;
-    }
-
-    const nextSegmentations = cloneSegmentations(segmentations);
-    delete nextSegmentations[activeTag];
-    setDraftLine([]);
-    commitSegmentations(nextSegmentations);
+  function cycleStrokeWidth() {
+    setStrokeWidth((currentValue) => {
+      const currentIndex = STROKE_WIDTH_OPTIONS.indexOf(currentValue);
+      const nextIndex = currentIndex >= 0
+        ? (currentIndex + 1) % STROKE_WIDTH_OPTIONS.length
+        : 0;
+      return STROKE_WIDTH_OPTIONS[nextIndex];
+    });
   }
 
   async function toggleFocusMode() {
@@ -942,8 +948,6 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
     return null;
   }
 
-  const activeLineCount = activeTag ? countTagLines(segmentations, activeTag) : 0;
-
   return (
     <div
       ref={focusFrameRef}
@@ -951,46 +955,45 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
     >
       <main className={isFocusMode ? "flex h-full flex-col gap-4" : "space-y-5"}>
       <section className={`panel z-20 px-5 py-4 sm:px-6 ${isFocusMode ? "shrink-0" : "sticky top-28"}`}>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Wrinkles Editor</p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-                {editor.image.name}
-              </h1>
-              <p className="mt-2 text-sm text-slate-500">
-                Apple Pencil и мышь рисуют или стирают. Пальцы двигают и масштабируют холст.
-              </p>
-            </div>
+        <div className="flex flex-col gap-3">
+          {!isFocusMode ? (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Wrinkles Editor</p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+                  {editor.image.name}
+                </h1>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/image/${editor.image.id}`}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-ink"
-              >
-                К карточке
-              </Link>
-              {editor.prev_id ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={`/image/${editor.prev_id}/editor`}
+                  to={`/image/${editor.image.id}`}
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-ink"
                 >
-                  ← Предыдущее
+                  К карточке
                 </Link>
-              ) : null}
-              {editor.next_id ? (
-                <Link
-                  to={`/image/${editor.next_id}/editor`}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-ink"
-                >
-                  Следующее →
-                </Link>
-              ) : null}
+                {editor.prev_id ? (
+                  <Link
+                    to={`/image/${editor.prev_id}/editor`}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-ink"
+                  >
+                    ← Предыдущее
+                  </Link>
+                ) : null}
+                {editor.next_id ? (
+                  <Link
+                    to={`/image/${editor.next_id}/editor`}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-ink"
+                  >
+                    Следующее →
+                  </Link>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-1 flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setMode("draw")}
@@ -1033,7 +1036,7 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={handleUndo}
@@ -1077,8 +1080,8 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
         </section>
       ) : null}
 
-      <section className={isFocusMode ? "grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]" : "grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]"}>
-        <div className={`panel p-4 sm:p-5 ${isFocusMode ? "min-h-0" : ""}`}>
+      <section className={isFocusMode ? "min-h-0 flex-1" : ""}>
+        <div className={`panel p-4 sm:p-5 ${isFocusMode ? "h-full min-h-0" : ""}`}>
           <div
             ref={workspaceRef}
             onPointerDown={handlePointerDown}
@@ -1086,7 +1089,7 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
             onMouseDown={(event) => {
-              if (event.button === 1) {
+              if (event.button === 1 || event.button === 2) {
                 event.preventDefault();
               }
             }}
@@ -1100,65 +1103,90 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
               isFocusMode ? "h-full min-h-[520px]" : "h-[68vh]"
             }`}
           >
-            <button
-              type="button"
-              onClick={() => setMode((currentMode) => currentMode === "erase" ? "draw" : "erase")}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onMouseDown={(event) => {
-                event.stopPropagation();
-              }}
-              onAuxClick={(event) => {
-                event.stopPropagation();
-              }}
-              aria-label={mode === "erase" ? "Выключить ластик" : "Включить ластик"}
-              className={`absolute right-16 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
-                mode === "erase"
-                  ? "border-rose-200 bg-rose-500 shadow-soft hover:scale-105"
-                  : "border-white/15 bg-slate-950/60 backdrop-blur hover:scale-110"
-              }`}
-            >
-              <img
-                src="/icon-eraser.png"
-                alt=""
-                className={`h-5 w-5 object-contain transition duration-200 ${
+            <div className="absolute right-4 top-4 z-20 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setMode((currentMode) => currentMode === "erase" ? "draw" : "erase")}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onAuxClick={(event) => {
+                  event.stopPropagation();
+                }}
+                aria-label={mode === "erase" ? "Выключить ластик" : "Включить ластик"}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
                   mode === "erase"
-                    ? "brightness-0 invert"
-                    : "invert brightness-0 saturate-0 contrast-200"
-                } group-hover:scale-110`}
-              />
-            </button>
+                    ? "border-rose-200 bg-rose-500 shadow-soft hover:scale-105"
+                    : "border-white/15 bg-slate-950/60 backdrop-blur hover:scale-110"
+                }`}
+              >
+                <img
+                  src="/icon-eraser.png"
+                  alt=""
+                  className={`h-5 w-5 object-contain transition duration-200 ${
+                    mode === "erase"
+                      ? "brightness-0 invert"
+                      : "invert brightness-0 saturate-0 contrast-200"
+                  } group-hover:scale-110`}
+                />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => void toggleFocusMode()}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onMouseDown={(event) => {
-                event.stopPropagation();
-              }}
-              onAuxClick={(event) => {
-                event.stopPropagation();
-              }}
-              aria-label={isFocusMode ? "Выйти из фокус-режима" : "Включить фокус-режим"}
-              className={`absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
-                isFocusMode
-                  ? "border-white/15 bg-white/90 shadow-soft hover:scale-105"
-                  : "border-white/15 bg-slate-950/60 backdrop-blur hover:scale-110"
-              }`}
-            >
-              <img
-                src="/icon-screen.png"
-                alt=""
-                className={`h-5 w-5 object-contain transition duration-200 ${
+              <button
+                type="button"
+                onClick={cycleStrokeWidth}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onAuxClick={(event) => {
+                  event.stopPropagation();
+                }}
+                title={`Толщина линии: ${strokeWidthLabel(strokeWidth)}`}
+                aria-label={`Толщина линии: ${strokeWidthLabel(strokeWidth)}`}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/60 text-white backdrop-blur transition hover:scale-110"
+              >
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="block w-5 rounded-full bg-white/95" style={{ height: "2px" }} />
+                  <span className="block w-5 rounded-full bg-white/95" style={{ height: "3px" }} />
+                  <span className="block w-5 rounded-full bg-white/95" style={{ height: "4px" }} />
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void toggleFocusMode()}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onAuxClick={(event) => {
+                  event.stopPropagation();
+                }}
+                aria-label={isFocusMode ? "Выйти из фокус-режима" : "Включить фокус-режим"}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
                   isFocusMode
-                    ? "invert-0"
-                    : "invert brightness-0 saturate-0 contrast-200"
-                } group-hover:scale-110`}
-              />
-            </button>
+                    ? "border-white/15 bg-white/90 shadow-soft hover:scale-105"
+                    : "border-white/15 bg-slate-950/60 backdrop-blur hover:scale-110"
+                }`}
+              >
+                <img
+                  src="/icon-screen.png"
+                  alt=""
+                  className={`h-5 w-5 object-contain transition duration-200 ${
+                    isFocusMode
+                      ? "invert-0"
+                      : "invert brightness-0 saturate-0 contrast-200"
+                  } group-hover:scale-110`}
+                />
+              </button>
+            </div>
 
             {hasScene ? (
               <div
@@ -1238,122 +1266,64 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
                   : "Режим: навигация"}
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-slate-950/65 px-4 py-3 text-sm text-slate-100 backdrop-blur">
-              {activeTag ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-semibold">Активный тег: {activeTag}</p>
-                    <p className="text-xs text-slate-300">
-                      {mode === "erase"
-                        ? "Нажми на линию, чтобы удалить её целиком."
-                        : "Stroke сохраняется автоматически после отпускания пера или мыши."}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200">
-                    <span className="rounded-full bg-white/10 px-3 py-1.5">
-                      Линий: {activeLineCount}
-                    </span>
-                    <span className="rounded-full bg-white/10 px-3 py-1.5">
-                      Масштаб: {(viewport.zoom * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm font-medium text-slate-100">
-                  У изображения нет тегов для разметки. Сначала добавьте их на карточке изображения.
-                </p>
-              )}
+            {activeTag ? (
+              <div className="absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-slate-950/65 px-3 py-2 text-sm font-semibold text-slate-100 backdrop-blur">
+                Активный тег: {activeTag}
+              </div>
+            ) : (
+              <div className="absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-slate-950/65 px-3 py-2 text-sm font-medium text-slate-100 backdrop-blur">
+                Нет тегов для разметки
+              </div>
+            )}
+
+            <div className="absolute bottom-4 right-4 rounded-2xl border border-white/10 bg-slate-950/65 px-3 py-2 text-xs font-semibold text-slate-100 backdrop-blur">
+              Масштаб: {(viewport.zoom * 100).toFixed(0)}%
             </div>
           </div>
         </div>
 
-        <aside className={`space-y-5 ${isFocusMode ? "overflow-y-auto pr-1" : ""}`}>
-          <section className="panel px-5 py-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Теги</p>
-                <h2 className="mt-2 text-lg font-semibold text-ink">Слои разметки</h2>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
-                {availableTags.length}
-              </span>
-            </div>
+      </section>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {availableTags.map((tag) => {
-                const selected = tag === activeTag;
+      <section
+        className={
+          isFocusMode
+            ? "fixed bottom-4 left-4 right-4 z-20 rounded-[28px] border border-white/70 bg-white/92 px-4 py-3 shadow-panel backdrop-blur sm:left-5 sm:right-5 sm:px-5"
+            : "panel px-4 py-4 sm:px-5"
+        }
+      >
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Слои</p>
+        </div>
 
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setActiveTag(tag)}
-                    className={`inline-flex min-h-11 items-center gap-2 rounded-2xl px-4 py-2 text-left text-sm font-semibold transition ${
-                      selected
-                        ? "bg-slate-950 text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-ink"
-                    }`}
-                  >
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: colorForTag(tag) }}
-                    />
-                    <span>{tag}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${selected ? "bg-white/15" : "bg-slate-100 text-slate-500"}`}>
-                      {countTagLines(segmentations, tag)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+        <div className="mt-2 overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-2">
+            {availableTags.map((tag) => {
+              const selected = tag === activeTag;
 
-          <section className="panel px-5 py-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Инструменты</p>
-            <div className="mt-4 space-y-4">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Толщина линии</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {STROKE_WIDTH_OPTIONS.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setStrokeWidth(value)}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                        strokeWidth === value
-                          ? "bg-sky-500 text-white"
-                          : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-ink"
-                      }`}
-                    >
-                      {value === 3 ? "Тонкая" : value === 5 ? "Средняя" : "Толстая"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-2">
+              return (
                 <button
+                  key={tag}
                   type="button"
-                  onClick={handleDeleteActiveTag}
-                  disabled={!activeTag || !activeLineCount}
-                  className="rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setActiveTag(tag)}
+                  className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl px-4 py-2 text-left text-sm font-semibold transition ${
+                    selected
+                      ? "bg-slate-950 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-ink"
+                  }`}
                 >
-                  Удалить весь активный тег
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: colorForTag(tag) }}
+                  />
+                  <span className="whitespace-nowrap">{tag}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${selected ? "bg-white/15" : "bg-slate-100 text-slate-500"}`}>
+                    {countTagLines(segmentations, tag)}
+                  </span>
                 </button>
-              </div>
-            </div>
-          </section>
-
-          <section className="panel px-5 py-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Подсказка</p>
-            <div className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
-              <p>Для iPad: рисуй Apple Pencil, а пальцами двигай и масштабируй изображение.</p>
-              <p>Ластик удаляет линию целиком по нажатию на неё пером или мышью.</p>
-              <p>Если нужно точно навестись на область, переключись в режим «Навигация».</p>
-              <p>Undo и Redo работают по завершённым stroke и удалению линий.</p>
-            </div>
-          </section>
-        </aside>
+              );
+            })}
+          </div>
+        </div>
       </section>
     </main>
     </div>
