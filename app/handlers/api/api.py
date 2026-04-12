@@ -157,12 +157,6 @@ async def get_image_detail(
     if not image:
         return JSONResponse(status_code=404, content={"detail": "Изображение не найдено"})
 
-    if not can_open_editor(image.is_verified):
-        return JSONResponse(
-            status_code=409,
-            content={"detail": "Разметка доступна только после первичной проверки тегов"},
-        )
-
     prev_image = db.query(Image).filter(Image.id < image.id).order_by(Image.id.desc()).first()
     next_image = db.query(Image).filter(Image.id > image.id).order_by(Image.id.asc()).first()
     assignee_options = []
@@ -215,6 +209,12 @@ async def get_image_editor_data(
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         return JSONResponse(status_code=404, content={"detail": "Изображение не найдено"})
+
+    if not can_open_editor(image.is_verified):
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "Разметка доступна только после первичной проверки тегов"},
+        )
 
     prev_image = db.query(Image).filter(Image.id < image.id).order_by(Image.id.desc()).first()
     next_image = db.query(Image).filter(Image.id > image.id).order_by(Image.id.asc()).first()
