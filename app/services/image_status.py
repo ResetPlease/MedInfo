@@ -23,11 +23,11 @@ def can_open_editor(status: Optional[int]) -> bool:
     if status is None:
         return False
 
-    return status in EDITOR_ALLOWED_STATUSES
+    return status >= STATUS_READY_FOR_MARKUP
 
 
 def needs_markup_review_after_change(status: Optional[int]) -> bool:
     if status is None:
         return False
 
-    return status in EDITOR_ALLOWED_STATUSES
+    return status >= STATUS_READY_FOR_MARKUP
