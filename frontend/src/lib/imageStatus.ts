@@ -20,7 +20,11 @@ export function imageStatusLabel(status: number | null) {
     return "Готово";
   }
 
-  return "Неизвестно";
+  if (status === null) {
+    return "Без статуса";
+  }
+
+  return `Неизвестный статус (${status})`;
 }
 
 export function imageStatusTone(status: number | null) {

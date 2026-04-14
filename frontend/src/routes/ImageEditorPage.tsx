@@ -9,6 +9,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { getImageEditor, removeSegmentation, saveSegmentation } from "../lib/api";
 import type { CurrentUser, ImageEditorResponse, SegmentationMap } from "../lib/api";
+import { IMAGE_STATUS_MARKUP_REVIEW } from "../lib/imageStatus";
 
 type ImageEditorPageProps = {
   currentUser: CurrentUser;
@@ -486,6 +487,15 @@ export function ImageEditorPage({ currentUser }: ImageEditorPageProps) {
       if (saveRequestIdRef.current === requestId) {
         setSaveState("saved");
         setLastSavedAt(new Date());
+        setEditor((currentEditor) => currentEditor
+          ? {
+            ...currentEditor,
+            image: {
+              ...currentEditor.image,
+              is_verified: IMAGE_STATUS_MARKUP_REVIEW,
+            },
+          }
+          : currentEditor);
       }
     } catch (err) {
       if (saveRequestIdRef.current === requestId) {
