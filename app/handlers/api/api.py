@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.inference import predict_wrinkles
+from app.inference import predict_wrinkles, predict_segmentation
 from app.models import Image, Role, Segmentation, User, at_least_worker, isModelAdmin
 from app.security import authenticate_user, create_access_token, get_current_user_api
 from app.services import (
@@ -446,6 +446,23 @@ async def predict_tags_api(
 
     labels = predict_wrinkles(file_path)
     return {"wrinkles": labels}
+
+
+@router.post("/predict/segmentation")
+async def predict_segmentation_api(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_api),
+):
+    upload_dir = "app/uploads/predict"
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
+
+    file_path = os.path.join(upload_dir, file.filename or "predict-image")
+    with open(file_path, "wb") as temp_file:
+        copyfileobj(file.file, temp_file)
+
+    segmentations = predict_segmentation(file_path)
+    return {"segmentations": segmentations}
 
 
 def _split_legacy_tags(tags: Optional[str]) -> list[str]:

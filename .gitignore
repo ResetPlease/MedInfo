@@ -1,9 +1,16 @@
 *.db
 *best_wrinkle_model.pth*
+app/inference/*.onnx
+app/inference/*.onnx.data
+training/runs/
 .venv/
+.venv-train/
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
 app/uploads
+.claude/
+training/
+scripts/

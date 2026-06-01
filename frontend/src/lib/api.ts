@@ -407,6 +407,17 @@ export function predictTags(formData: FormData) {
   });
 }
 
+export type PredictSegmentationResponse = {
+  segmentations: SegmentationMap;
+};
+
+export function predictSegmentation(formData: FormData) {
+  return request<PredictSegmentationResponse>("/api/predict/segmentation", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export async function logout() {
   await request<{ status: string }>("/api/auth/logout", {
     method: "POST",
