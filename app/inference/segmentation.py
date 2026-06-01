@@ -28,7 +28,8 @@ def _load():
     if os.path.exists(_THRESH):
         _thresholds = json.load(open(_THRESH, encoding="utf-8"))
     so = ort.SessionOptions()
-    so.intra_op_num_threads = max(1, (os.cpu_count() or 2) - 1)
+    env_threads = int(os.environ.get("SEG_NUM_THREADS", "0") or 0)
+    so.intra_op_num_threads = env_threads if env_threads > 0 else min((os.cpu_count() or 2), 4)
     _session = ort.InferenceSession(_ONNX, sess_options=so, providers=["CPUExecutionProvider"])
     print(f"[seg] загружена модель ({len(_meta['classes'])} классов, res={_meta['res']})")
     return True
@@ -54,8 +55,10 @@ def _mask_to_polygons(mask, res, min_area, eps_frac=0.002):
     return polys
 
 
-def predict_segmentation(image_path: str, tta: bool = True):
+def predict_segmentation(image_path: str, tta: bool = None):
     """Возвращает {label: [polygons]} нормированных полигонов. {} если лицо/файл не читается."""
+    if tta is None:
+        tta = os.environ.get("SEG_TTA", "1") != "0"
     if not _load():
         return {}
     try:
